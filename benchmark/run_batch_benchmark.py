@@ -12,6 +12,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -35,6 +36,7 @@ CSV_COLUMNS = [
     "total_input_mb",
     "chunk_size_kb",
     "backend",
+    "experiment",
     "run_number",
     "total_elapsed_seconds",
     "batch_throughput_mb_s",
@@ -382,6 +384,62 @@ def save_result(row: dict) -> None:
             )
 
 
+def load_existing_rows(output: Path) -> list[dict[str, Any]]:
+    """
+    Carga filas existentes de un CSV de resultados batch.
+
+    Parameters:
+    output (Path): Ruta del archivo CSV.
+
+    Returns:
+    list[dict[str, Any]]: Filas existentes con los campos numéricos convertidos.
+    """
+    if not output.exists():
+        return []
+
+    rows: list[dict[str, Any]] = []
+    with output.open("r", newline="", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            parsed: dict[str, Any] = {}
+            for key, value in row.items():
+                if value is None or value == "":
+                    parsed[key] = None
+                elif key in {
+                    "num_files",
+                    "file_size_mb",
+                    "total_input_mb",
+                    "chunk_size_kb",
+                    "run_number",
+                    "total_chunks",
+                    "total_unique_chunks",
+                    "total_duplicate_chunks",
+                    "total_bytes_original",
+                    "total_bytes_stored",
+                    "total_bytes_saved",
+                    "ray_workers",
+                    "upload_workers",
+                    "concurrency",
+                }:
+                    parsed[key] = int(value)
+                elif key in {
+                    "total_elapsed_seconds",
+                    "batch_throughput_mb_s",
+                    "files_per_second",
+                    "storage_saving_pct",
+                    "dedup_ratio",
+                    "cpu_avg_pct",
+                    "cpu_max_pct",
+                    "ram_delta_mb",
+                    "peak_memory_mb",
+                }:
+                    parsed[key] = float(value)
+                else:
+                    parsed[key] = value
+            rows.append(parsed)
+    return rows
+
+
 def write_csv(rows: list[dict], output: Path) -> None:
     """
     Escribe resultados batch detallados en un archivo CSV.
@@ -503,6 +561,7 @@ def run_config(args, num_files: int, file_size_mb: int, run_number: int) -> dict
         "total_input_mb": total_input_mb,
         "chunk_size_kb": args.chunk_size_kb,
         "backend": args.backend,
+        "experiment": args.experiment,
         "run_number": run_number,
         "total_elapsed_seconds": elapsed,
         "batch_throughput_mb_s": total_input_mb / elapsed,
@@ -564,6 +623,7 @@ def run_preset_config(args, configs: list[tuple[int, int]], run_number: int) -> 
         "total_input_mb": total_input_mb,
         "chunk_size_kb": args.chunk_size_kb,
         "backend": args.backend,
+        "experiment": args.experiment,
         "run_number": run_number,
         "total_elapsed_seconds": elapsed,
         "batch_throughput_mb_s": total_input_mb / elapsed,
@@ -622,12 +682,15 @@ def main() -> None:
     parser.add_argument("--repetitions", type=int, default=int(os.getenv("BENCHMARK_REPETITIONS", "5")))
     parser.add_argument("--output-dir", type=Path, default=Path("benchmark/datasets"))
     parser.add_argument("--csv-output", type=Path, default=Path("/results/batch_benchmark.csv"))
+    parser.add_argument("--experiment", default=None, help="Nombre del experimento usado en la columna experiment")
     parser.add_argument("--seed", type=int, default=int(os.getenv("BENCHMARK_SEED", "12345")))
     parser.add_argument("--timeout-seconds", type=int, default=3600)
     parser.add_argument("--poll-seconds", type=float, default=2.0)
     parser.add_argument("--ray-workers", type=int, default=int(os.getenv("RAY_WORKERS", "0") or "0"))
     parser.add_argument("--upload-workers", type=int, default=int(os.getenv("UPLOAD_WORKERS", "1") or "1"))
     args = parser.parse_args()
+    experiment = args.experiment or args.csv_output.stem
+    args.experiment = experiment
 
     if args.batch_preset:
         configs = parse_preset(args.batch_preset)
@@ -644,8 +707,11 @@ def main() -> None:
             for num_files, file_size_mb in configs:
                 rows.append(run_config(args, num_files, file_size_mb, run_number))
 
-    write_csv(rows, args.csv_output)
-    write_summary_csv(rows, args.csv_output)
+    existing_rows = load_existing_rows(args.csv_output)
+    all_rows = existing_rows + rows
+
+    write_csv(all_rows, args.csv_output)
+    write_summary_csv(all_rows, args.csv_output)
     print_summary(rows)
 
 

@@ -8,8 +8,6 @@ BACKENDS=("sequential" "numpy" "cython" "ray")
 DATASETS=("random" "repeated" "modified" "mixed")
 FILE_SIZES=(10 50 100)
 
-# num_files fijo para la matriz principal (barrido completo).
-# El efecto de num_files se explora aparte, en un experimento reducido (ver EXTRA abajo).
 NUM_FILES_MAIN=20
 
 UPLOAD_WORKERS=(1 2)
@@ -18,8 +16,10 @@ RAY_WORKERS=(2 4)
 CHUNK_SIZE_KB=1024
 RESULTS_DIR="results"
 
-# Repeticiones adaptativas: menos reps para archivos grandes (500MB)
-# para no volarte el tiempo total. Ajusta según lo que necesites.
+# Interruptor de medición de energía. En el cluster, dejar en 0.
+# En tu laptop local (con RAPL Intel confirmado), poner en 1.
+ENABLE_ENERGY_MEASUREMENT=0
+
 reps_for_size() {
     local size="$1"
     if [ "$size" -ge 500 ]; then
@@ -32,21 +32,24 @@ reps_for_size() {
 }
 
 # ============================================================
-# ENERGÍA (Intel RAPL vía powercap)
+# ENERGÍA (opcional, desactivada por defecto)
 # ============================================================
 RAPL_PATH="/sys/class/powercap/intel-rapl:0/energy_uj"
 ENERGY_CSV="${RESULTS_DIR}/energy.csv"
 RAPL_AVAILABLE=0
 
 check_rapl() {
+    if [ "$ENABLE_ENERGY_MEASUREMENT" -ne 1 ]; then
+        echo "Medición de energía desactivada (ENABLE_ENERGY_MEASUREMENT=0)."
+        RAPL_AVAILABLE=0
+        return
+    fi
     if [ -r "$RAPL_PATH" ]; then
         RAPL_AVAILABLE=1
         echo "RAPL disponible: se medirá energía por experimento."
     else
         RAPL_AVAILABLE=0
-        echo "AVISO: $RAPL_PATH no accesible (¿estás en una VM sin passthrough, o sin permisos?)."
-        echo "Los experimentos van a correr igual, pero SIN datos de energía."
-        echo "Prueba: sudo chmod -R a+r /sys/class/powercap/intel-rapl:0/ (o corré el script con sudo)."
+        echo "AVISO: $RAPL_PATH no accesible. Los experimentos corren igual, sin datos de energía."
     fi
 }
 
@@ -106,8 +109,10 @@ run_experiment() {
     fi
 
     local energy_before energy_after wall_start wall_end
-    energy_before=$(read_rapl_uj)
-    wall_start=$(date +%s.%N)
+    if [ "$RAPL_AVAILABLE" -eq 1 ]; then
+        energy_before=$(read_rapl_uj)
+        wall_start=$(date +%s.%N)
+    fi
 
     if ! docker compose --profile benchmark run --rm benchmark \
         python benchmark/run_batch_benchmark.py \
@@ -127,12 +132,9 @@ run_experiment() {
         return 1
     fi
 
-    wall_end=$(date +%s.%N)
-    energy_after=$(read_rapl_uj)
-
     if [ "$RAPL_AVAILABLE" -eq 1 ]; then
-        # energy_uj es un contador acumulado que puede hacer overflow y resetear;
-        # si el delta da negativo, lo descartamos (NA) en vez de reportar un valor falso.
+        wall_end=$(date +%s.%N)
+        energy_after=$(read_rapl_uj)
         local delta_uj wall_seconds
         wall_seconds=$(awk -v a="$wall_start" -v b="$wall_end" 'BEGIN{printf "%.3f", b-a}')
         if [ "$energy_after" -ge "$energy_before" ] 2>/dev/null; then
@@ -143,7 +145,7 @@ run_experiment() {
             echo "${experiment},${delta_joules},${avg_watts},${wall_seconds}" >> "$ENERGY_CSV"
         else
             echo "${experiment},NA,NA,${wall_seconds}" >> "$ENERGY_CSV"
-            echo "${experiment}: overflow/reset detectado en contador RAPL, energía descartada" >> "${RESULTS_DIR}/failed.log"
+            echo "${experiment}: overflow/reset detectado en contador RAPL" >> "${RESULTS_DIR}/failed.log"
         fi
     fi
 
@@ -151,8 +153,7 @@ run_experiment() {
 }
 
 # ============================================================
-# MATRIZ PRINCIPAL: backend x dataset x file_size x upload_workers (x ray_workers si aplica)
-# num_files fijo en NUM_FILES_MAIN
+# MATRIZ PRINCIPAL
 # ============================================================
 main_matrix() {
     for backend in "${BACKENDS[@]}"; do
@@ -181,9 +182,7 @@ main_matrix() {
 }
 
 # ============================================================
-# EXPERIMENTO EXTRA: efecto de num_files, aislado
-# Solo dataset=mixed, file_size=100MB, backend representativo (sequential y ray)
-# para no repetir toda la matriz con num_files variable.
+# EXPERIMENTO EXTRA: efecto de num_files
 # ============================================================
 extra_num_files_experiment() {
     local dataset="mixed"

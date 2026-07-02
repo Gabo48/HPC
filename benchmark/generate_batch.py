@@ -24,30 +24,23 @@ def utc_now() -> str:
 
 def file_bytes(dataset: str, size_bytes: int, chunk_size_kb: int, index: int, seed: int) -> bytes:
     """
-    Genera bytes reproducibles para un archivo sintetico.
-
-    Parameters:
-    dataset (str): Tipo de dataset a generar: random, repeated, modified o mixed.
-    size_bytes (int): Tamano total del archivo en bytes.
-    chunk_size_kb (int): Tamano de chunk usado para construir patrones.
-    index (int): Indice del archivo dentro del batch.
-    seed (int): Semilla base para reproducibilidad.
-
-    Returns:
-    bytes: Contenido binario sintetico del archivo.
+    Genera bytes reproducibles para un archivo sintetico de forma eficiente.
     """
     rng = random.Random(seed + index)
     chunk_size = chunk_size_kb * 1024
 
     if dataset == "random":
-        return rng.randbytes(size_bytes)
+        return os.urandom(size_bytes)
 
     if dataset == "repeated":
-        block = random.Random(seed).randbytes(chunk_size)
+        # Generación nativa y ultra rápida de un único chunk
+        block = rng.getrandbits(chunk_size * 8).to_bytes(chunk_size, 'little')
         return (block * ((size_bytes // chunk_size) + 1))[:size_bytes]
 
     if dataset == "modified":
-        base = bytearray(random.Random(seed).randbytes(chunk_size))
+        # Bloque base rápido usando getrandbits agrupado
+        base_block = random.Random(seed).getrandbits(chunk_size * 8).to_bytes(chunk_size, 'little')
+        base = bytearray(base_block)
         chunks: list[bytes] = []
         for chunk_index in range((size_bytes + chunk_size - 1) // chunk_size):
             current = bytearray(base)
@@ -58,13 +51,16 @@ def file_bytes(dataset: str, size_bytes: int, chunk_size_kb: int, index: int, se
         return b"".join(chunks)[:size_bytes]
 
     if dataset == "mixed":
-        repeated_block = random.Random(seed).randbytes(chunk_size)
+        # Bloque repetido rápido
+        repeated_block = random.Random(seed).getrandbits(chunk_size * 8).to_bytes(chunk_size, 'little')
         chunks = []
         for chunk_index in range((size_bytes + chunk_size - 1) // chunk_size):
             if chunk_index % 2 == 0:
                 chunks.append(repeated_block)
             else:
-                chunks.append(rng.randbytes(chunk_size))
+                # Chunk aleatorio rápido sin bucles pesados en Python
+                chunk_aleatorio = rng.getrandbits(chunk_size * 8).to_bytes(chunk_size, 'little')
+                chunks.append(chunk_aleatorio)
         return b"".join(chunks)[:size_bytes]
 
     raise ValueError(f"dataset invalido: {dataset}")

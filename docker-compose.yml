@@ -11,6 +11,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit max_message_size 536870912
 
   postgres:
     image: postgres:16
@@ -53,6 +57,7 @@ services:
       context: .
       dockerfile: Dockerfile.processor
     command: ray start --head --port=6379 --ray-client-server-port=10001 --dashboard-host=0.0.0.0 --block
+    shm_size: '4gb'
     ports:
       - "8265:8265"
     env_file: .env
@@ -125,6 +130,7 @@ services:
       context: .
       dockerfile: Dockerfile.benchmark
     restart: "no"
+    shm_size: '4gb'
     env_file: .env
     environment:
       HPC_BACKEND: ${HPC_BACKEND:-ray}
