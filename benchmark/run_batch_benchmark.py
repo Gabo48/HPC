@@ -79,7 +79,26 @@ SUMMARY_COLUMNS = [
 
 
 class ResourceSampler:
+    """
+    Muestrea CPU y memoria mientras corre un benchmark batch.
+
+    Parameters:
+    None
+
+    Returns:
+    ResourceSampler: Context manager que expone metricas agregadas.
+    """
+
     def __init__(self) -> None:
+        """
+        Inicializa el estado interno del muestreador de recursos.
+
+        Parameters:
+        None
+
+        Returns:
+        None: Prepara buffers y banderas de control.
+        """
         self.cpu_samples: list[float] = []
         self.peak_memory_mb = 0.0
         self.ram_start_mb = 0.0
@@ -115,6 +134,15 @@ class ResourceSampler:
         self.peak_memory_mb = max(self.peak_memory_mb, self.ram_end_mb)
 
     def metrics(self) -> dict:
+        """
+        Calcula las metricas finales de CPU y memoria.
+
+        Parameters:
+        None
+
+        Returns:
+        dict: Promedio/maximo de CPU, delta de RAM y memoria peak.
+        """
         if psutil is None:
             return {"cpu_avg_pct": None, "cpu_max_pct": None, "ram_delta_mb": None, "peak_memory_mb": None}
         return {
@@ -126,10 +154,28 @@ class ResourceSampler:
 
 
 def utc_stamp() -> str:
+    """
+    Genera un timestamp UTC compacto para nombres de batch.
+
+    Parameters:
+    None
+
+    Returns:
+    str: Timestamp en formato YYYYMMDDTHHMMSSZ.
+    """
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
 def parse_preset(preset: str) -> list[tuple[int, int]]:
+    """
+    Convierte un nombre de preset batch en configuraciones de archivos.
+
+    Parameters:
+    preset (str): Nombre del preset solicitado.
+
+    Returns:
+    list[tuple[int, int]]: Pares de cantidad de archivos y tamano en MB.
+    """
     presets = {
         "batch_small": [(10, 10)],
         "batch_medium": [(10, 100)],
@@ -150,6 +196,20 @@ def generate_mixed_size_batch(
     seed: int,
     batch_id: str,
 ) -> dict:
+    """
+    Genera un batch con archivos de multiples tamanos.
+
+    Parameters:
+    dataset (str): Tipo de dataset sintetico.
+    configs (list[tuple[int, int]]): Pares de cantidad de archivos y tamano en MB.
+    output (Path): Directorio de salida del batch.
+    chunk_size_kb (int): Tamano de chunk usado para construir datos.
+    seed (int): Semilla base para reproducibilidad.
+    batch_id (str): Identificador del batch generado.
+
+    Returns:
+    dict: Manifest del batch con hashes globales por archivo.
+    """
     output.mkdir(parents=True, exist_ok=True)
     files = []
     file_index = 0
@@ -187,6 +247,17 @@ def generate_mixed_size_batch(
 
 
 def wait_file(backend_url: str, file_id: str, timeout_seconds: int = 3600) -> dict:
+    """
+    Espera hasta que el backend exponga metadata de un archivo.
+
+    Parameters:
+    backend_url (str): URL base del backend FastAPI.
+    file_id (str): Identificador del archivo esperado.
+    timeout_seconds (int): Tiempo maximo de espera en segundos.
+
+    Returns:
+    dict: Metadata del archivo procesado.
+    """
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         response = requests.get(f"{backend_url.rstrip('/')}/file/{file_id}", timeout=30)
@@ -197,6 +268,17 @@ def wait_file(backend_url: str, file_id: str, timeout_seconds: int = 3600) -> di
 
 
 def validate_download(backend_url: str, file_id: str, expected_sha256: str) -> bool:
+    """
+    Descarga un archivo reconstruido y valida su SHA-256 global.
+
+    Parameters:
+    backend_url (str): URL base del backend FastAPI.
+    file_id (str): Identificador del archivo a descargar.
+    expected_sha256 (str): Hash global esperado del archivo original.
+
+    Returns:
+    bool: True si el archivo reconstruido coincide con el original.
+    """
     response = requests.get(f"{backend_url.rstrip('/')}/file/{file_id}/download", timeout=600)
     if response.status_code != 200:
         return False
@@ -204,6 +286,17 @@ def validate_download(backend_url: str, file_id: str, expected_sha256: str) -> b
 
 
 def aggregate_metrics(backend_url: str, batch_dir: Path, sent_manifest: dict) -> dict:
+    """
+    Agrega metricas de deduplicacion e integridad para un batch enviado.
+
+    Parameters:
+    backend_url (str): URL base del backend FastAPI.
+    batch_dir (Path): Directorio que contiene manifest.json del batch.
+    sent_manifest (dict): Manifest de envio con file_id por archivo.
+
+    Returns:
+    dict: Metricas globales del batch procesado.
+    """
     manifest = json.loads((batch_dir / "manifest.json").read_text(encoding="utf-8"))
     expected_hashes = {item["filename"]: item["sha256"] for item in manifest["files"]}
     all_hashes: dict[str, int] = {}
@@ -244,6 +337,15 @@ def aggregate_metrics(backend_url: str, batch_dir: Path, sent_manifest: dict) ->
 
 
 def save_result(row: dict) -> None:
+    """
+    Guarda una fila de resultado batch en PostgreSQL.
+
+    Parameters:
+    row (dict): Resultado consolidado de una corrida batch.
+
+    Returns:
+    None: Inserta datos en batch_benchmark_results si POSTGRES_DSN existe.
+    """
     dsn = os.getenv("POSTGRES_DSN")
     if not dsn:
         return
@@ -281,6 +383,16 @@ def save_result(row: dict) -> None:
 
 
 def write_csv(rows: list[dict], output: Path) -> None:
+    """
+    Escribe resultados batch detallados en un archivo CSV.
+
+    Parameters:
+    rows (list[dict]): Filas de resultados a serializar.
+    output (Path): Ruta del CSV de salida.
+
+    Returns:
+    None: Crea o reemplaza el archivo CSV.
+    """
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=CSV_COLUMNS)
@@ -289,6 +401,16 @@ def write_csv(rows: list[dict], output: Path) -> None:
 
 
 def write_summary_csv(rows: list[dict], output: Path) -> None:
+    """
+    Escribe un resumen estadistico agrupado del benchmark batch.
+
+    Parameters:
+    rows (list[dict]): Filas de resultados detallados.
+    output (Path): Ruta base del CSV detallado.
+
+    Returns:
+    None: Crea un CSV adicional con promedio, desviacion, minimo y maximo.
+    """
     grouped: dict[tuple, list[dict]] = {}
     for row in rows:
         key = (
@@ -335,6 +457,18 @@ def write_summary_csv(rows: list[dict], output: Path) -> None:
 
 
 def run_config(args, num_files: int, file_size_mb: int, run_number: int) -> dict:
+    """
+    Ejecuta una configuracion batch de tamano uniforme.
+
+    Parameters:
+    args: Argumentos CLI parseados.
+    num_files (int): Cantidad de archivos del batch.
+    file_size_mb (int): Tamano de cada archivo en MB.
+    run_number (int): Numero de repeticion experimental.
+
+    Returns:
+    dict: Fila de resultados consolidada para la corrida.
+    """
     batch_id = f"batch_{args.dataset}_{num_files}x{file_size_mb}_{args.chunk_size_kb}kb_r{run_number}_{utc_stamp()}"
     batch_dir = args.output_dir / batch_id
     generate_batch(
@@ -384,6 +518,17 @@ def run_config(args, num_files: int, file_size_mb: int, run_number: int) -> dict
 
 
 def run_preset_config(args, configs: list[tuple[int, int]], run_number: int) -> dict:
+    """
+    Ejecuta una configuracion batch basada en preset.
+
+    Parameters:
+    args: Argumentos CLI parseados.
+    configs (list[tuple[int, int]]): Pares de cantidad de archivos y tamano en MB.
+    run_number (int): Numero de repeticion experimental.
+
+    Returns:
+    dict: Fila de resultados consolidada para la corrida.
+    """
     num_files = sum(item[0] for item in configs)
     total_input_mb = sum(num_files * file_size_mb for num_files, file_size_mb in configs)
     reported_file_size_mb = configs[0][1] if len(configs) == 1 else 0
@@ -434,6 +579,15 @@ def run_preset_config(args, configs: list[tuple[int, int]], run_number: int) -> 
 
 
 def print_summary(rows: list[dict]) -> None:
+    """
+    Imprime una tabla compacta con resultados batch.
+
+    Parameters:
+    rows (list[dict]): Filas de resultados batch.
+
+    Returns:
+    None: Escribe el resumen en stdout.
+    """
     print("\nResumen batch benchmark")
     print("dataset files size_mb run elapsed_s MB/s files/s save% ok/fail")
     for row in rows:
@@ -447,6 +601,15 @@ def print_summary(rows: list[dict]) -> None:
 
 
 def main() -> None:
+    """
+    Ejecuta el benchmark batch end-to-end desde CLI.
+
+    Parameters:
+    None
+
+    Returns:
+    None: Genera batches, envia archivos, valida integridad y escribe CSVs.
+    """
     parser = argparse.ArgumentParser(description="Benchmark batch end-to-end por HTTP.")
     parser.add_argument("--dataset", choices=["random", "repeated", "modified", "mixed"], required=True)
     parser.add_argument("--num-files", type=int)

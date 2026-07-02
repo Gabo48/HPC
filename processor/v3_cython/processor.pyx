@@ -8,8 +8,9 @@ from cython.parallel cimport prange
 
 
 cdef unsigned int _crc32_bytes(const unsigned char[:] data) noexcept nogil:
-    cdef unsigned int crc = 0xFFFFFFFF
-    cdef unsigned int poly = 0xEDB88320
+    cdef unsigned int crc_mask = <unsigned int>0xFFFFFFFF
+    cdef unsigned int crc = crc_mask
+    cdef unsigned int poly = <unsigned int>0xEDB88320
     cdef Py_ssize_t i
     cdef int bit
 
@@ -22,7 +23,7 @@ cdef unsigned int _crc32_bytes(const unsigned char[:] data) noexcept nogil:
                 crc = (crc >> 1) ^ poly
             else:
                 crc = crc >> 1
-    return crc ^ 0xFFFFFFFF
+    return crc ^ crc_mask
 
 
 cdef unsigned long long _parallel_byte_sum(const unsigned char[:] data) noexcept nogil:

@@ -55,7 +55,26 @@ CSV_COLUMNS = [
 
 
 class ResourceSampler:
+    """
+    Muestrea CPU y memoria durante una seccion medida del benchmark.
+
+    Parameters:
+    None
+
+    Returns:
+    ResourceSampler: Context manager con metricas recolectadas.
+    """
+
     def __init__(self) -> None:
+        """
+        Inicializa buffers y estado interno del muestreador.
+
+        Parameters:
+        None
+
+        Returns:
+        None: Configura el objeto para medir recursos posteriormente.
+        """
         self.cpu_samples: list[float] = []
         self.peak_memory_mb = 0.0
         self.ram_start_mb = 0.0
@@ -91,6 +110,15 @@ class ResourceSampler:
         self.peak_memory_mb = max(self.peak_memory_mb, self.ram_end_mb)
 
     def metrics(self) -> dict:
+        """
+        Resume las metricas de CPU y memoria recolectadas.
+
+        Parameters:
+        None
+
+        Returns:
+        dict: Promedio/maximo de CPU y memoria usada durante la muestra.
+        """
         if psutil is None:
             return {
                 "cpu_avg_pct": None,
@@ -107,6 +135,16 @@ class ResourceSampler:
 
 
 def parse_int_list(env_name: str, default: list[int]) -> list[int]:
+    """
+    Lee una lista de enteros desde una variable de entorno.
+
+    Parameters:
+    env_name (str): Nombre de la variable de entorno.
+    default (list[int]): Valores usados cuando la variable no existe.
+
+    Returns:
+    list[int]: Lista parseada desde texto separado por comas.
+    """
     raw = os.getenv(env_name)
     if not raw:
         return default
@@ -114,6 +152,16 @@ def parse_int_list(env_name: str, default: list[int]) -> list[int]:
 
 
 def parse_str_list(env_name: str, default: list[str]) -> list[str]:
+    """
+    Lee una lista de strings desde una variable de entorno.
+
+    Parameters:
+    env_name (str): Nombre de la variable de entorno.
+    default (list[str]): Valores usados cuando la variable no existe.
+
+    Returns:
+    list[str]: Lista parseada desde texto separado por comas.
+    """
     raw = os.getenv(env_name)
     if not raw:
         return default
@@ -121,11 +169,32 @@ def parse_str_list(env_name: str, default: list[str]) -> list[str]:
 
 
 def chunks_for(data: bytes, chunk_size_kb: int) -> list[bytes]:
+    """
+    Divide un archivo en chunks de tamano fijo.
+
+    Parameters:
+    data (bytes): Contenido binario del archivo completo.
+    chunk_size_kb (int): Tamano de cada chunk en KB.
+
+    Returns:
+    list[bytes]: Lista ordenada de chunks.
+    """
     chunk_size = chunk_size_kb * 1024
     return [data[offset : offset + chunk_size] for offset in range(0, len(data), chunk_size)]
 
 
 def generate_dataset(dataset_type: str, file_size_mb: int, chunk_size_kb: int) -> bytes:
+    """
+    Genera un archivo sintetico para benchmark.
+
+    Parameters:
+    dataset_type (str): Tipo de dataset: random, repeated, modified o mixed.
+    file_size_mb (int): Tamano total del archivo en MB.
+    chunk_size_kb (int): Tamano de chunk usado para construir patrones.
+
+    Returns:
+    bytes: Archivo sintetico generado en memoria.
+    """
     total_size = file_size_mb * 1024 * 1024
     chunk_size = chunk_size_kb * 1024
 
@@ -157,10 +226,30 @@ def generate_dataset(dataset_type: str, file_size_mb: int, chunk_size_kb: int) -
 
 
 def preprocess(backend: str, chunks: list[bytes]) -> list[dict]:
+    """
+    Ejecuta el processor seleccionado sobre una lista de chunks.
+
+    Parameters:
+    backend (str): Nombre del backend HPC a usar.
+    chunks (list[bytes]): Chunks a preprocesar.
+
+    Returns:
+    list[dict]: Metadata calculada por chunk.
+    """
     return importlib.import_module(BACKENDS[backend]).preprocess_chunks(chunks)
 
 
 def dedup_metrics_from_processed(processed_chunks: list[dict], bytes_original: int) -> dict:
+    """
+    Calcula metricas de deduplicacion a partir de chunks procesados.
+
+    Parameters:
+    processed_chunks (list[dict]): Chunks con sha256, tamano y metadata.
+    bytes_original (int): Tamano original del archivo en bytes.
+
+    Returns:
+    dict: Conteos de chunks, bytes almacenados y ahorro estimado.
+    """
     seen: set[str] = set()
     bytes_stored = 0
     duplicate_chunks = 0
@@ -187,6 +276,15 @@ def dedup_metrics_from_processed(processed_chunks: list[dict], bytes_original: i
 
 
 def detect_ray_workers(backend: str) -> int | None:
+    """
+    Detecta la cantidad de workers Ray disponibles o configurados.
+
+    Parameters:
+    backend (str): Backend en evaluacion.
+
+    Returns:
+    int | None: Numero de ray-workers si aplica, o None si no se conoce.
+    """
     raw = os.getenv("RAY_WORKERS")
     if raw:
         return int(raw)
@@ -204,6 +302,15 @@ def detect_ray_workers(backend: str) -> int | None:
 
 
 def save_result(row: dict) -> None:
+    """
+    Guarda una fila de benchmark en PostgreSQL.
+
+    Parameters:
+    row (dict): Resultado completo de una corrida.
+
+    Returns:
+    None: Inserta la fila en benchmark_results.
+    """
     with psycopg2.connect(os.environ["POSTGRES_DSN"]) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -234,6 +341,18 @@ def save_result(row: dict) -> None:
 def run_processor_once(
     backend: str, data: bytes, chunks: list[bytes], _filename: str
 ) -> tuple[float, dict, bool, dict]:
+    """
+    Ejecuta una corrida de microbenchmark sobre el processor.
+
+    Parameters:
+    backend (str): Backend HPC a evaluar.
+    data (bytes): Archivo original completo.
+    chunks (list[bytes]): Chunks derivados del archivo.
+    _filename (str): Nombre reservado para compatibilidad con otros runners.
+
+    Returns:
+    tuple[float, dict, bool, dict]: Tiempo, metricas dedup, integridad y recursos.
+    """
     original_hash = hashlib.sha256(data).hexdigest()
     with ResourceSampler() as sampler:
         start = time.perf_counter()
@@ -245,6 +364,18 @@ def run_processor_once(
 
 
 def run_end_to_end_once(backend: str, data: bytes, chunks: list[bytes], filename: str) -> tuple[float, dict, bool, dict]:
+    """
+    Ejecuta una corrida end-to-end sin HTTP usando deduplicacion real.
+
+    Parameters:
+    backend (str): Backend HPC a evaluar.
+    data (bytes): Archivo original completo.
+    chunks (list[bytes]): Chunks derivados del archivo.
+    filename (str): Nombre logico del archivo almacenado.
+
+    Returns:
+    tuple[float, dict, bool, dict]: Tiempo, metricas dedup, integridad y recursos.
+    """
     from minio import Minio
 
     from dedup.deduplicator import store_file_chunks
@@ -297,6 +428,25 @@ def build_row(
     integrity_ok: bool,
     resource_metrics: dict,
 ) -> dict:
+    """
+    Construye una fila normalizada para CSV y PostgreSQL.
+
+    Parameters:
+    benchmark_mode (str): Modo de benchmark ejecutado.
+    backend (str): Backend HPC usado.
+    dataset_type (str): Tipo de dataset generado.
+    file_size_mb (int): Tamano del archivo en MB.
+    chunk_size_kb (int): Tamano de chunk en KB.
+    run_number (int): Numero de repeticion.
+    elapsed (float): Duracion medida en segundos.
+    speedup (float): Aceleracion relativa al baseline secuencial.
+    dedup_metrics (dict): Metricas de deduplicacion.
+    integrity_ok (bool): Resultado de validacion de integridad.
+    resource_metrics (dict): Metricas de CPU y memoria.
+
+    Returns:
+    dict: Fila lista para persistencia y CSV.
+    """
     return {
         "benchmark_mode": benchmark_mode,
         "backend": backend,
@@ -315,6 +465,15 @@ def build_row(
 
 
 def print_summary(rows: list[dict]) -> None:
+    """
+    Imprime un resumen agrupado de las corridas ejecutadas.
+
+    Parameters:
+    rows (list[dict]): Filas de resultados del benchmark.
+
+    Returns:
+    None: Escribe la tabla resumen en stdout.
+    """
     print("\nResumen benchmark")
     print("mode        dataset   file chunk backend      avg_s     MB/s  save%  ok")
     print("----------- -------- ----- ----- ------------ ------- ------- ------ ---")
@@ -342,6 +501,15 @@ def print_summary(rows: list[dict]) -> None:
 
 
 def main() -> None:
+    """
+    Ejecuta el benchmark configurado por variables de entorno.
+
+    Parameters:
+    None
+
+    Returns:
+    None: Guarda resultados en PostgreSQL y /results/benchmark.csv.
+    """
     benchmark_mode = os.getenv("BENCHMARK_MODE", "processor").lower()
     if benchmark_mode not in {"processor", "end_to_end"}:
         raise ValueError("BENCHMARK_MODE debe ser processor o end_to_end")

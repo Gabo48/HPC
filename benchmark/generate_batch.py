@@ -10,10 +10,32 @@ from pathlib import Path
 
 
 def utc_now() -> str:
+    """
+    Genera un timestamp UTC en formato ISO 8601.
+
+    Parameters:
+    None
+
+    Returns:
+    str: Fecha y hora actual en UTC.
+    """
     return datetime.now(timezone.utc).isoformat()
 
 
 def file_bytes(dataset: str, size_bytes: int, chunk_size_kb: int, index: int, seed: int) -> bytes:
+    """
+    Genera bytes reproducibles para un archivo sintetico.
+
+    Parameters:
+    dataset (str): Tipo de dataset a generar: random, repeated, modified o mixed.
+    size_bytes (int): Tamano total del archivo en bytes.
+    chunk_size_kb (int): Tamano de chunk usado para construir patrones.
+    index (int): Indice del archivo dentro del batch.
+    seed (int): Semilla base para reproducibilidad.
+
+    Returns:
+    bytes: Contenido binario sintetico del archivo.
+    """
     rng = random.Random(seed + index)
     chunk_size = chunk_size_kb * 1024
 
@@ -58,6 +80,21 @@ def generate_batch(
     seed: int,
     batch_id: str | None = None,
 ) -> dict:
+    """
+    Genera un batch de archivos y su manifest asociado.
+
+    Parameters:
+    dataset (str): Tipo de dataset a generar.
+    num_files (int): Cantidad de archivos del batch.
+    file_size_mb (int): Tamano de cada archivo en MB.
+    output (Path): Directorio donde se escriben archivos y manifest.
+    chunk_size_kb (int): Tamano de chunk usado para patrones repetidos.
+    seed (int): Semilla base para reproducibilidad.
+    batch_id (str | None): Identificador opcional del batch.
+
+    Returns:
+    dict: Manifest con metadata y SHA-256 de cada archivo.
+    """
     output.mkdir(parents=True, exist_ok=True)
     batch_id = batch_id or output.name
     size_bytes = file_size_mb * 1024 * 1024
@@ -93,6 +130,15 @@ def generate_batch(
 
 
 def main() -> None:
+    """
+    Ejecuta la interfaz CLI para generar un batch reproducible.
+
+    Parameters:
+    None
+
+    Returns:
+    None: Escribe archivos en disco e imprime el manifest generado.
+    """
     parser = argparse.ArgumentParser(description="Genera batches reproducibles para benchmark HPC.")
     parser.add_argument("--dataset", choices=["random", "repeated", "modified", "mixed"], required=True)
     parser.add_argument("--num-files", type=int, required=True)

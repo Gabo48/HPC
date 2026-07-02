@@ -11,10 +11,29 @@ import requests
 
 
 def utc_now() -> str:
+    """
+    Genera un timestamp UTC en formato ISO 8601.
+
+    Parameters:
+    None
+
+    Returns:
+    str: Fecha y hora actual en UTC.
+    """
     return datetime.now(timezone.utc).isoformat()
 
 
 def upload_one(backend_url: str, path: Path) -> dict:
+    """
+    Sube un archivo individual al endpoint HTTP de upload.
+
+    Parameters:
+    backend_url (str): URL base del backend FastAPI.
+    path (Path): Ruta local del archivo a enviar.
+
+    Returns:
+    dict: Nombre, file_id y duracion de la request de upload.
+    """
     start = time.perf_counter()
     with path.open("rb") as file_obj:
         response = requests.post(
@@ -32,6 +51,18 @@ def upload_one(backend_url: str, path: Path) -> dict:
 
 
 def wait_for_file(backend_url: str, file_id: str, timeout_seconds: int, poll_seconds: float) -> dict:
+    """
+    Espera hasta que un archivo procesado este disponible en el backend.
+
+    Parameters:
+    backend_url (str): URL base del backend FastAPI.
+    file_id (str): Identificador del archivo a consultar.
+    timeout_seconds (int): Tiempo maximo de espera en segundos.
+    poll_seconds (float): Intervalo entre consultas sucesivas.
+
+    Returns:
+    dict: Metadata del archivo procesado.
+    """
     deadline = time.monotonic() + timeout_seconds
     last_error = None
     while time.monotonic() < deadline:
@@ -55,6 +86,20 @@ def send_batch(
     timeout_seconds: int,
     poll_seconds: float,
 ) -> dict:
+    """
+    Envia todos los archivos de un batch al backend con concurrencia configurable.
+
+    Parameters:
+    batch_dir (Path): Directorio que contiene archivos y manifest.json.
+    backend_url (str): URL base del backend FastAPI.
+    concurrency (int): Numero maximo de uploads simultaneos.
+    wait_results (bool): Indica si debe esperar procesamiento completo.
+    timeout_seconds (int): Tiempo maximo de espera por archivo.
+    poll_seconds (float): Intervalo de consulta mientras espera resultados.
+
+    Returns:
+    dict: Manifest de envio con file_id y tiempos por archivo.
+    """
     manifest = json.loads((batch_dir / "manifest.json").read_text(encoding="utf-8"))
     started_at = utc_now()
     sent_files = []
@@ -93,6 +138,15 @@ def send_batch(
 
 
 def main() -> None:
+    """
+    Ejecuta la interfaz CLI para enviar un batch por HTTP.
+
+    Parameters:
+    None
+
+    Returns:
+    None: Escribe sent_manifest.json e imprime el resultado del envio.
+    """
     parser = argparse.ArgumentParser(description="Envia un batch al backend HPC por HTTP.")
     parser.add_argument("--batch", type=Path, required=True)
     parser.add_argument("--backend-url", required=True)

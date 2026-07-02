@@ -29,6 +29,15 @@ app.add_middleware(
 
 
 def env(name: str) -> str:
+    """
+    Obtiene una variable de entorno requerida por el servicio.
+
+    Parameters:
+    name (str): Nombre de la variable de entorno a leer.
+
+    Returns:
+    str: Valor configurado para la variable solicitada.
+    """
     value = os.getenv(name)
     if not value:
         raise RuntimeError(f"Falta variable de entorno requerida: {name}")
@@ -36,14 +45,41 @@ def env(name: str) -> str:
 
 
 def rabbitmq_connection() -> pika.BlockingConnection:
+    """
+    Crea una conexion bloqueante hacia RabbitMQ.
+
+    Parameters:
+    None
+
+    Returns:
+    pika.BlockingConnection: Conexion activa usando RABBITMQ_URL.
+    """
     return pika.BlockingConnection(pika.URLParameters(env("RABBITMQ_URL")))
 
 
 def postgres_connection():
+    """
+    Crea una conexion hacia PostgreSQL.
+
+    Parameters:
+    None
+
+    Returns:
+    connection: Conexion psycopg2 usando POSTGRES_DSN.
+    """
     return psycopg2.connect(env("POSTGRES_DSN"))
 
 
 def minio_client() -> Minio:
+    """
+    Construye un cliente MinIO con la configuracion del entorno.
+
+    Parameters:
+    None
+
+    Returns:
+    Minio: Cliente listo para leer y escribir objetos.
+    """
     return Minio(
         env("MINIO_ENDPOINT"),
         access_key=env("MINIO_ACCESS_KEY"),
@@ -54,6 +90,15 @@ def minio_client() -> Minio:
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)) -> dict:
+    """
+    Recibe un archivo y publica una tarea de procesamiento en RabbitMQ.
+
+    Parameters:
+    file (UploadFile): Archivo enviado por multipart/form-data.
+
+    Returns:
+    dict: Identificador, nombre y tamano del archivo recibido.
+    """
     data = await file.read()
     file_id = str(uuid.uuid4())
     payload = {
@@ -81,6 +126,15 @@ async def upload(file: UploadFile = File(...)) -> dict:
 
 @app.get("/file/{file_id}")
 def get_file(file_id: str) -> dict:
+    """
+    Obtiene metadata de un archivo y sus referencias deduplicadas.
+
+    Parameters:
+    file_id (str): Identificador del archivo consultado.
+
+    Returns:
+    dict: Metadata del archivo y lista ordenada de chunks logicos.
+    """
     with postgres_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -133,6 +187,15 @@ def get_file(file_id: str) -> dict:
 
 @app.get("/file/{file_id}/integrity")
 def get_integrity(file_id: str) -> dict:
+    """
+    Obtiene informacion de integridad por chunk para un archivo.
+
+    Parameters:
+    file_id (str): Identificador del archivo consultado.
+
+    Returns:
+    dict: Hash, CRC32 y tamano de cada chunk del archivo.
+    """
     with postgres_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM files WHERE file_id = %s", (file_id,))
@@ -157,6 +220,15 @@ def get_integrity(file_id: str) -> dict:
 
 @app.get("/file/{file_id}/download")
 def download_file(file_id: str) -> Response:
+    """
+    Reconstruye y descarga un archivo desde chunks deduplicados.
+
+    Parameters:
+    file_id (str): Identificador del archivo a reconstruir.
+
+    Returns:
+    Response: Archivo binario reconstruido con cabecera de descarga.
+    """
     with postgres_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT filename FROM files WHERE file_id = %s", (file_id,))
@@ -186,6 +258,15 @@ def download_file(file_id: str) -> Response:
 
 @app.get("/health")
 def health() -> dict:
+    """
+    Revisa el estado basico de las dependencias del backend.
+
+    Parameters:
+    None
+
+    Returns:
+    dict: Estado de RabbitMQ, PostgreSQL y salud general del servicio.
+    """
     status = {"rabbitmq": "down", "postgres": "down"}
 
     try:

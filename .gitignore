@@ -1,0 +1,7 @@
+hpc/benchmark/datasets/
+results/
+*.bin
+.env
+postgres-data/
+minio-data/
+rabbitmq-data/
