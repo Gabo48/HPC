@@ -10,65 +10,35 @@ FILE_SIZES=(10 50 100)
 
 NUM_FILES_MAIN=20
 
+# En HPC controlamos los hilos directamente con las variables que lee Python,
+# ya no escalamos contenedores independientes con Docker.
 UPLOAD_WORKERS=(1 2)
 RAY_WORKERS=(2 4)
 
 CHUNK_SIZE_KB=1024
 RESULTS_DIR="results"
+SIF_IMAGE="benchmark_image.sif" # Tu contenedor de Apptainer
 
-# Interruptor de medición de energía. En el cluster, dejar en 0.
-# En tu laptop local (con RAPL Intel confirmado), poner en 1.
 ENABLE_ENERGY_MEASUREMENT=0
 
 reps_for_size() {
     local size="$1"
-    if [ "$size" -ge 500 ]; then
-        echo 2
-    elif [ "$size" -ge 100 ]; then
-        echo 3
-    else
-        echo 5
-    fi
+    if [ "$size" -ge 500 ]; then echo 2; elif [ "$size" -ge 100 ]; then echo 3; else echo 5; fi
 }
 
 # ============================================================
-# ENERGÍA (opcional, desactivada por defecto)
+# HELPERS (Limpiados de Docker)
 # ============================================================
-RAPL_PATH="/sys/class/powercap/intel-rapl:0/energy_uj"
-ENERGY_CSV="${RESULTS_DIR}/energy.csv"
-RAPL_AVAILABLE=0
-
-check_rapl() {
-    if [ "$ENABLE_ENERGY_MEASUREMENT" -ne 1 ]; then
-        echo "Medición de energía desactivada (ENABLE_ENERGY_MEASUREMENT=0)."
-        RAPL_AVAILABLE=0
-        return
-    fi
-    if [ -r "$RAPL_PATH" ]; then
-        RAPL_AVAILABLE=1
-        echo "RAPL disponible: se medirá energía por experimento."
-    else
-        RAPL_AVAILABLE=0
-        echo "AVISO: $RAPL_PATH no accesible. Los experimentos corren igual, sin datos de energía."
-    fi
-}
-
-read_rapl_uj() {
-    cat "$RAPL_PATH" 2>/dev/null || echo 0
-}
-
-# ============================================================
-# HELPERS
-# ============================================================
-compose_cleanup() {
-    docker compose down -v --remove-orphans || true
+cluster_cleanup() {
+    echo "Limpiando entornos temporales si aplica..."
 }
 
 wait_for_backend() {
+    # En HPC, si el backend corre local/nativo o en el mismo nodo, validamos su puerto.
     local deadline=$((SECONDS + 120))
     until curl -fsS http://localhost:8000/docs >/dev/null 2>&1; do
         if (( SECONDS >= deadline )); then
-            echo "Backend no se levantó en tiempo" >&2
+            echo "El servicio Backend no responde en el puerto 8000" >&2
             return 1
         fi
         sleep 2
@@ -85,42 +55,24 @@ run_experiment() {
     local experiment="$7"
     local repetitions="$8"
 
-    local csv_output="/results/${experiment}.csv"
+    local csv_output="/app/results/${experiment}.csv"
     echo "=== Iniciando experimento: ${experiment} (reps=${repetitions}) ==="
 
-    compose_cleanup
+    cluster_cleanup
 
-    if [ "$backend" = "ray" ]; then
-        HPC_BACKEND="$backend" CHUNK_SIZE_KB="$CHUNK_SIZE_KB" RAY_WORKERS="$ray_workers" \
-            docker compose up -d \
-                --scale upload-worker="$upload_workers" \
-                --scale ray-worker="$ray_workers" \
-                backend upload-worker ray-head ray-worker rabbitmq postgres minio
-    else
-        HPC_BACKEND="$backend" CHUNK_SIZE_KB="$CHUNK_SIZE_KB" RAY_WORKERS=0 \
-            docker compose up -d \
-                --scale upload-worker="$upload_workers" \
-                backend upload-worker ray-head rabbitmq postgres minio
-    fi
-
-    if ! wait_for_backend; then
-        echo "${experiment}: FALLO al levantar backend" >> "${RESULTS_DIR}/failed.log"
-        return 1
-    fi
-
-    local energy_before energy_after wall_start wall_end
-    if [ "$RAPL_AVAILABLE" -eq 1 ]; then
-        energy_before=$(read_rapl_uj)
-        wall_start=$(date +%s.%N)
-    fi
-
-    if ! docker compose --profile benchmark run --rm benchmark \
-        python benchmark/run_batch_benchmark.py \
+    # --- CAMBIO CLAVE HPC ---
+    # En lugar de levantar contenedores aislados con Docker Compose, ejecutamos el script 
+    # de Python directamente dentro de tu entorno seguro aislado de Apptainer (.sif)
+    # Pasamos las variables de entorno para que las librerías internas las configuren.
+    
+    if ! apptainer exec --bind .:/app "$SIF_IMAGE" \
+        env HPC_BACKEND="$backend" CHUNK_SIZE_KB="$CHUNK_SIZE_KB" RAY_WORKERS="$ray_workers" \
+        python /app/benchmark/run_batch_benchmark.py \
             --dataset "$dataset" \
             --num-files "$num_files" \
             --file-size-mb "$file_size_mb" \
             --chunk-size-kb "$CHUNK_SIZE_KB" \
-            --backend-url http://backend:8000 \
+            --backend-url "http://localhost:8000" \
             --backend "$backend" \
             --concurrency "$upload_workers" \
             --repetitions "$repetitions" \
@@ -130,23 +82,6 @@ run_experiment() {
             --upload-workers "$upload_workers"; then
         echo "${experiment}: FALLO en run_batch_benchmark.py" >> "${RESULTS_DIR}/failed.log"
         return 1
-    fi
-
-    if [ "$RAPL_AVAILABLE" -eq 1 ]; then
-        wall_end=$(date +%s.%N)
-        energy_after=$(read_rapl_uj)
-        local delta_uj wall_seconds
-        wall_seconds=$(awk -v a="$wall_start" -v b="$wall_end" 'BEGIN{printf "%.3f", b-a}')
-        if [ "$energy_after" -ge "$energy_before" ] 2>/dev/null; then
-            delta_uj=$((energy_after - energy_before))
-            local delta_joules avg_watts
-            delta_joules=$(awk -v uj="$delta_uj" 'BEGIN{printf "%.3f", uj/1000000}')
-            avg_watts=$(awk -v j="$delta_joules" -v s="$wall_seconds" 'BEGIN{ if (s>0) printf "%.3f", j/s; else print "NA" }')
-            echo "${experiment},${delta_joules},${avg_watts},${wall_seconds}" >> "$ENERGY_CSV"
-        else
-            echo "${experiment},NA,NA,${wall_seconds}" >> "$ENERGY_CSV"
-            echo "${experiment}: overflow/reset detectado en contador RAPL" >> "${RESULTS_DIR}/failed.log"
-        fi
     fi
 
     echo "=== Experimento finalizado: ${experiment} ==="
@@ -182,7 +117,7 @@ main_matrix() {
 }
 
 # ============================================================
-# EXPERIMENTO EXTRA: efecto de num_files
+# EXPERIMENTO EXTRA
 # ============================================================
 extra_num_files_experiment() {
     local dataset="mixed"
@@ -202,7 +137,7 @@ extra_num_files_experiment() {
                 run_experiment "$backend" "$dataset" "$file_size_mb" "$num_files" \
                     2 0 "$experiment" "$repetitions" \
                     || echo "Continuando pese al fallo en ${experiment}"
-            fi
+fi
         done
     done
 }
@@ -214,23 +149,14 @@ main() {
     mkdir -p "$RESULTS_DIR"
     : > "${RESULTS_DIR}/failed.log"
 
-    check_rapl
-    if [ "$RAPL_AVAILABLE" -eq 1 ]; then
-        echo "experiment,energy_joules,avg_watts,wall_seconds" > "$ENERGY_CSV"
-    fi
-
-    echo "--- Build de imágenes (una sola vez) ---"
-    docker compose build
-
-    echo "--- Matriz principal ---"
+    echo "--- Matriz principal en HPC ---"
     main_matrix
 
     echo "--- Experimento extra: efecto de num_files ---"
     extra_num_files_experiment
 
-    compose_cleanup
+    cluster_cleanup
     echo "Resultados generados en ${RESULTS_DIR}/"
-    echo "Fallos (si hubo) registrados en ${RESULTS_DIR}/failed.log"
 }
 
 main "$@"
