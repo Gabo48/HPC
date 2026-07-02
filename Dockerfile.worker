@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.worker.txt .
+RUN pip install --no-cache-dir -r requirements.worker.txt
+
+COPY processor/ processor/
+COPY dedup/ dedup/
+COPY worker/ worker/
+RUN cd processor/v3_cython && python setup.py build_ext --inplace
+
+ENV PYTHONPATH=/app
+CMD ["python", "worker/upload_worker.py"]

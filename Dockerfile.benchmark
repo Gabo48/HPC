@@ -1,0 +1,20 @@
+FROM rayproject/ray:2.10.0-py311
+
+WORKDIR /app
+
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /results
+
+COPY requirements.benchmark.txt .
+RUN pip install --no-cache-dir -r requirements.benchmark.txt
+
+COPY processor/ processor/
+COPY dedup/ dedup/
+COPY benchmark/ benchmark/
+RUN cd processor/v3_cython && python setup.py build_ext --inplace
+
+ENV PYTHONPATH=/app
+CMD ["python", "benchmark/run_benchmark.py"]
