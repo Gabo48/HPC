@@ -25,7 +25,7 @@ if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from benchmark.generate_batch import file_bytes, generate_batch
-from benchmark.send_batch import send_batch
+from benchmark.send_batch import send_batch, wait_for_file
 
 
 CSV_COLUMNS = [
@@ -38,9 +38,24 @@ CSV_COLUMNS = [
     "backend",
     "experiment",
     "run_number",
+    "generation_seconds",
+    "send_wait_seconds",
+    "aggregate_seconds",
     "total_elapsed_seconds",
     "batch_throughput_mb_s",
     "files_per_second",
+    "upload_request_total_seconds",
+    "upload_request_avg_seconds",
+    "integrity_download_total_seconds",
+    "integrity_download_avg_seconds",
+    "payload_load_avg_seconds",
+    "chunk_split_avg_seconds",
+    "preprocess_avg_seconds",
+    "dedup_store_avg_seconds",
+    "encryption_avg_seconds",
+    "object_upload_avg_seconds",
+    "cleanup_avg_seconds",
+    "worker_total_avg_seconds",
     "total_chunks",
     "total_unique_chunks",
     "total_duplicate_chunks",
@@ -168,6 +183,14 @@ def utc_stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def log(message: str) -> None:
+    print(f"[{utc_now()}] {message}", flush=True)
+
+
 def parse_preset(preset: str) -> list[tuple[int, int]]:
     """
     Convierte un nombre de preset batch en configuraciones de archivos.
@@ -222,8 +245,10 @@ def generate_mixed_size_batch(
         total_size_mb += num_files * file_size_mb
         for _ in range(num_files):
             filename = f"file_{file_index:03d}_{file_size_mb}mb.bin"
+            log(f"generate file start filename={filename} size_mb={file_size_mb}")
             data = file_bytes(dataset, size_bytes, chunk_size_kb, file_index, seed)
             (output / filename).write_bytes(data)
+            log(f"generate file done filename={filename}")
             files.append(
                 {
                     "filename": filename,
@@ -248,7 +273,13 @@ def generate_mixed_size_batch(
     return manifest
 
 
-def wait_file(backend_url: str, file_id: str, timeout_seconds: int = 3600) -> dict:
+def wait_file(
+    backend_url: str,
+    file_id: str,
+    timeout_seconds: int = 3600,
+    poll_seconds: float = 2.0,
+    max_poll_attempts: int | None = None,
+) -> dict:
     """
     Espera hasta que el backend exponga metadata de un archivo.
 
@@ -260,16 +291,16 @@ def wait_file(backend_url: str, file_id: str, timeout_seconds: int = 3600) -> di
     Returns:
     dict: Metadata del archivo procesado.
     """
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        response = requests.get(f"{backend_url.rstrip('/')}/file/{file_id}", timeout=30)
-        if response.status_code == 200:
-            return response.json()
-        time.sleep(2)
-    raise TimeoutError(f"No se completo file_id={file_id}")
+    return wait_for_file(
+        backend_url=backend_url,
+        file_id=file_id,
+        timeout_seconds=timeout_seconds,
+        poll_seconds=poll_seconds,
+        max_poll_attempts=max_poll_attempts,
+    )
 
 
-def validate_download(backend_url: str, file_id: str, expected_sha256: str) -> bool:
+def validate_download(backend_url: str, file_id: str, expected_sha256: str) -> tuple[bool, float]:
     """
     Descarga un archivo reconstruido y valida su SHA-256 global.
 
@@ -281,13 +312,30 @@ def validate_download(backend_url: str, file_id: str, expected_sha256: str) -> b
     Returns:
     bool: True si el archivo reconstruido coincide con el original.
     """
+    start = time.perf_counter()
+    log(f"integrity download start file_id={file_id}")
     response = requests.get(f"{backend_url.rstrip('/')}/file/{file_id}/download", timeout=600)
     if response.status_code != 200:
-        return False
-    return hashlib.sha256(response.content).hexdigest() == expected_sha256
+        log(f"integrity download failed file_id={file_id} status={response.status_code}")
+        return False, time.perf_counter() - start
+    ok = hashlib.sha256(response.content).hexdigest() == expected_sha256
+    elapsed = time.perf_counter() - start
+    log(f"integrity download done file_id={file_id} ok={ok} elapsed_s={elapsed:.2f}")
+    return ok, elapsed
 
 
-def aggregate_metrics(backend_url: str, batch_dir: Path, sent_manifest: dict) -> dict:
+def average(values: list[float]) -> float:
+    return statistics.mean(values) if values else 0.0
+
+
+def aggregate_metrics(
+    backend_url: str,
+    batch_dir: Path,
+    sent_manifest: dict,
+    timeout_seconds: int,
+    poll_seconds: float,
+    max_poll_attempts: int | None,
+) -> dict:
     """
     Agrega metricas de deduplicacion e integridad para un batch enviado.
 
@@ -306,24 +354,50 @@ def aggregate_metrics(backend_url: str, batch_dir: Path, sent_manifest: dict) ->
     total_bytes_original = 0
     integrity_ok = 0
     integrity_failed = 0
+    integrity_download_seconds: list[float] = []
+    worker_timings: dict[str, list[float]] = {
+        "payload_load_seconds": [],
+        "chunk_split_seconds": [],
+        "preprocess_seconds": [],
+        "dedup_store_seconds": [],
+        "encryption_seconds": [],
+        "object_upload_seconds": [],
+        "cleanup_seconds": [],
+        "worker_total_seconds": [],
+    }
+    log(f"aggregate start files={len(sent_manifest['sent_files'])}")
 
-    for sent in sent_manifest["sent_files"]:
-        metadata = wait_file(backend_url, sent["file_id"])
+    for index, sent in enumerate(sent_manifest["sent_files"], start=1):
+        log(f"aggregate file start index={index}/{len(sent_manifest['sent_files'])} file_id={sent['file_id']}")
+        metadata = wait_file(backend_url, sent["file_id"], timeout_seconds, poll_seconds, max_poll_attempts)
         total_bytes_original += int(metadata["total_size"])
         chunks = metadata["chunks"]
+        for key, value in (metadata.get("processing_timings") or {}).items():
+            if key in worker_timings and value is not None:
+                worker_timings[key].append(float(value))
         total_chunks += len(chunks)
         for chunk in chunks:
             all_hashes.setdefault(chunk["chunk_hash"], int(chunk["size_bytes"]))
 
-        if validate_download(backend_url, sent["file_id"], expected_hashes[sent["filename"]]):
+        download_ok, download_seconds = validate_download(backend_url, sent["file_id"], expected_hashes[sent["filename"]])
+        integrity_download_seconds.append(download_seconds)
+        if download_ok:
             integrity_ok += 1
         else:
             integrity_failed += 1
+        log(
+            f"aggregate file done index={index}/{len(sent_manifest['sent_files'])} "
+            f"chunks={len(chunks)} integrity_ok={integrity_ok} integrity_failed={integrity_failed}"
+        )
 
     total_unique_chunks = len(all_hashes)
     total_bytes_stored = sum(all_hashes.values())
     total_duplicate_chunks = total_chunks - total_unique_chunks
     total_bytes_saved = total_bytes_original - total_bytes_stored
+    log(
+        f"aggregate done total_chunks={total_chunks} unique_chunks={total_unique_chunks} "
+        f"integrity_ok={integrity_ok} integrity_failed={integrity_failed}"
+    )
     return {
         "total_chunks": total_chunks,
         "total_unique_chunks": total_unique_chunks,
@@ -335,6 +409,16 @@ def aggregate_metrics(backend_url: str, batch_dir: Path, sent_manifest: dict) ->
         "dedup_ratio": total_bytes_original / total_bytes_stored if total_bytes_stored else 1.0,
         "integrity_ok_count": integrity_ok,
         "integrity_failed_count": integrity_failed,
+        "integrity_download_total_seconds": sum(integrity_download_seconds),
+        "integrity_download_avg_seconds": average(integrity_download_seconds),
+        "payload_load_avg_seconds": average(worker_timings["payload_load_seconds"]),
+        "chunk_split_avg_seconds": average(worker_timings["chunk_split_seconds"]),
+        "preprocess_avg_seconds": average(worker_timings["preprocess_seconds"]),
+        "dedup_store_avg_seconds": average(worker_timings["dedup_store_seconds"]),
+        "encryption_avg_seconds": average(worker_timings["encryption_seconds"]),
+        "object_upload_avg_seconds": average(worker_timings["object_upload_seconds"]),
+        "cleanup_avg_seconds": average(worker_timings["cleanup_seconds"]),
+        "worker_total_avg_seconds": average(worker_timings["worker_total_seconds"]),
     }
 
 
@@ -357,10 +441,37 @@ def save_result(row: dict) -> None:
         with conn.cursor() as cur:
             cur.execute(
                 """
+                ALTER TABLE batch_benchmark_results
+                    ADD COLUMN IF NOT EXISTS generation_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS send_wait_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS aggregate_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS upload_request_total_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS upload_request_avg_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS integrity_download_total_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS integrity_download_avg_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS payload_load_avg_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS chunk_split_avg_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS preprocess_avg_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS dedup_store_avg_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS encryption_avg_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS object_upload_avg_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS cleanup_avg_seconds FLOAT DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS worker_total_avg_seconds FLOAT DEFAULT 0
+                """
+            )
+            cur.execute(
+                """
                 INSERT INTO batch_benchmark_results (
                     batch_id, dataset_type, num_files, file_size_mb, total_input_mb,
-                    chunk_size_kb, backend, run_number, total_elapsed_seconds,
-                    batch_throughput_mb_s, files_per_second, total_chunks,
+                    chunk_size_kb, backend, run_number, generation_seconds,
+                    send_wait_seconds, aggregate_seconds, total_elapsed_seconds,
+                    batch_throughput_mb_s, files_per_second,
+                    upload_request_total_seconds, upload_request_avg_seconds,
+                    integrity_download_total_seconds, integrity_download_avg_seconds,
+                    payload_load_avg_seconds, chunk_split_avg_seconds,
+                    preprocess_avg_seconds, dedup_store_avg_seconds,
+                    encryption_avg_seconds, object_upload_avg_seconds,
+                    cleanup_avg_seconds, worker_total_avg_seconds, total_chunks,
                     total_unique_chunks, total_duplicate_chunks, total_bytes_original,
                     total_bytes_stored, total_bytes_saved, storage_saving_pct,
                     dedup_ratio, integrity_ok_count, integrity_failed_count,
@@ -370,8 +481,15 @@ def save_result(row: dict) -> None:
                 VALUES (
                     %(batch_id)s, %(dataset_type)s, %(num_files)s, %(file_size_mb)s,
                     %(total_input_mb)s, %(chunk_size_kb)s, %(backend)s, %(run_number)s,
+                    %(generation_seconds)s, %(send_wait_seconds)s, %(aggregate_seconds)s,
                     %(total_elapsed_seconds)s, %(batch_throughput_mb_s)s,
-                    %(files_per_second)s, %(total_chunks)s, %(total_unique_chunks)s,
+                    %(files_per_second)s, %(upload_request_total_seconds)s,
+                    %(upload_request_avg_seconds)s, %(integrity_download_total_seconds)s,
+                    %(integrity_download_avg_seconds)s, %(payload_load_avg_seconds)s,
+                    %(chunk_split_avg_seconds)s, %(preprocess_avg_seconds)s,
+                    %(dedup_store_avg_seconds)s, %(encryption_avg_seconds)s,
+                    %(object_upload_avg_seconds)s, %(cleanup_avg_seconds)s,
+                    %(worker_total_avg_seconds)s, %(total_chunks)s, %(total_unique_chunks)s,
                     %(total_duplicate_chunks)s, %(total_bytes_original)s,
                     %(total_bytes_stored)s, %(total_bytes_saved)s,
                     %(storage_saving_pct)s, %(dedup_ratio)s, %(integrity_ok_count)s,
@@ -382,6 +500,14 @@ def save_result(row: dict) -> None:
                 """,
                 row,
             )
+
+
+def upload_request_metrics(sent_manifest: dict) -> dict:
+    elapsed = [float(item.get("upload_request_seconds", 0.0)) for item in sent_manifest.get("sent_files", [])]
+    return {
+        "upload_request_total_seconds": sum(elapsed),
+        "upload_request_avg_seconds": average(elapsed),
+    }
 
 
 def load_existing_rows(output: Path) -> list[dict[str, Any]]:
@@ -424,8 +550,23 @@ def load_existing_rows(output: Path) -> list[dict[str, Any]]:
                     parsed[key] = int(value)
                 elif key in {
                     "total_elapsed_seconds",
+                    "generation_seconds",
+                    "send_wait_seconds",
+                    "aggregate_seconds",
                     "batch_throughput_mb_s",
                     "files_per_second",
+                    "upload_request_total_seconds",
+                    "upload_request_avg_seconds",
+                    "integrity_download_total_seconds",
+                    "integrity_download_avg_seconds",
+                    "payload_load_avg_seconds",
+                    "chunk_split_avg_seconds",
+                    "preprocess_avg_seconds",
+                    "dedup_store_avg_seconds",
+                    "encryption_avg_seconds",
+                    "object_upload_avg_seconds",
+                    "cleanup_avg_seconds",
+                    "worker_total_avg_seconds",
                     "storage_saving_pct",
                     "dedup_ratio",
                     "cpu_avg_pct",
@@ -529,6 +670,12 @@ def run_config(args, num_files: int, file_size_mb: int, run_number: int) -> dict
     """
     batch_id = f"batch_{args.dataset}_{num_files}x{file_size_mb}_{args.chunk_size_kb}kb_r{run_number}_{utc_stamp()}"
     batch_dir = args.output_dir / batch_id
+    log(
+        f"run start experiment={args.experiment} run={run_number} dataset={args.dataset} "
+        f"files={num_files} size_mb={file_size_mb} backend={args.backend} concurrency={args.concurrency}"
+    )
+    log(f"generate batch start batch_id={batch_id} output={batch_dir}")
+    generation_start = time.perf_counter()
     generate_batch(
         dataset=args.dataset,
         num_files=num_files,
@@ -538,10 +685,13 @@ def run_config(args, num_files: int, file_size_mb: int, run_number: int) -> dict
         seed=args.seed + run_number,
         batch_id=batch_id,
     )
+    generation_seconds = time.perf_counter() - generation_start
+    log(f"generate batch done batch_id={batch_id}")
 
     total_input_mb = num_files * file_size_mb
     with ResourceSampler() as sampler:
         start = time.perf_counter()
+        send_start = time.perf_counter()
         sent_manifest = send_batch(
             batch_dir=batch_dir,
             backend_url=args.backend_url,
@@ -549,9 +699,21 @@ def run_config(args, num_files: int, file_size_mb: int, run_number: int) -> dict
             wait_results=True,
             timeout_seconds=args.timeout_seconds,
             poll_seconds=args.poll_seconds,
+            max_poll_attempts=args.max_poll_attempts,
         )
-        aggregate = aggregate_metrics(args.backend_url, batch_dir, sent_manifest)
+        send_wait_seconds = time.perf_counter() - send_start
+        aggregate_start = time.perf_counter()
+        aggregate = aggregate_metrics(
+            args.backend_url,
+            batch_dir,
+            sent_manifest,
+            args.timeout_seconds,
+            args.poll_seconds,
+            args.max_poll_attempts,
+        )
+        aggregate_seconds = time.perf_counter() - aggregate_start
         elapsed = time.perf_counter() - start
+        log(f"run measured section done batch_id={batch_id} elapsed_s={elapsed:.2f}")
 
     row = {
         "batch_id": batch_id,
@@ -563,9 +725,13 @@ def run_config(args, num_files: int, file_size_mb: int, run_number: int) -> dict
         "backend": args.backend,
         "experiment": args.experiment,
         "run_number": run_number,
+        "generation_seconds": generation_seconds,
+        "send_wait_seconds": send_wait_seconds,
+        "aggregate_seconds": aggregate_seconds,
         "total_elapsed_seconds": elapsed,
         "batch_throughput_mb_s": total_input_mb / elapsed,
         "files_per_second": num_files / elapsed,
+        **upload_request_metrics(sent_manifest),
         **aggregate,
         **sampler.metrics(),
         "ray_workers": args.ray_workers,
@@ -573,6 +739,10 @@ def run_config(args, num_files: int, file_size_mb: int, run_number: int) -> dict
         "concurrency": args.concurrency,
     }
     save_result(row)
+    log(
+        f"run done batch_id={batch_id} throughput_mb_s={row['batch_throughput_mb_s']:.2f} "
+        f"ok_fail={row['integrity_ok_count']}/{row['integrity_failed_count']}"
+    )
     return row
 
 
@@ -593,6 +763,13 @@ def run_preset_config(args, configs: list[tuple[int, int]], run_number: int) -> 
     reported_file_size_mb = configs[0][1] if len(configs) == 1 else 0
     batch_id = f"{args.batch_preset}_{args.dataset}_{args.chunk_size_kb}kb_r{run_number}_{utc_stamp()}"
     batch_dir = args.output_dir / batch_id
+    log(
+        f"run start experiment={args.experiment} run={run_number} preset={args.batch_preset} "
+        f"dataset={args.dataset} total_input_mb={total_input_mb} backend={args.backend} "
+        f"concurrency={args.concurrency}"
+    )
+    log(f"generate batch start batch_id={batch_id} output={batch_dir}")
+    generation_start = time.perf_counter()
     generate_mixed_size_batch(
         dataset=args.dataset,
         configs=configs,
@@ -601,9 +778,12 @@ def run_preset_config(args, configs: list[tuple[int, int]], run_number: int) -> 
         seed=args.seed + run_number,
         batch_id=batch_id,
     )
+    generation_seconds = time.perf_counter() - generation_start
+    log(f"generate batch done batch_id={batch_id}")
 
     with ResourceSampler() as sampler:
         start = time.perf_counter()
+        send_start = time.perf_counter()
         sent_manifest = send_batch(
             batch_dir=batch_dir,
             backend_url=args.backend_url,
@@ -611,9 +791,21 @@ def run_preset_config(args, configs: list[tuple[int, int]], run_number: int) -> 
             wait_results=True,
             timeout_seconds=args.timeout_seconds,
             poll_seconds=args.poll_seconds,
+            max_poll_attempts=args.max_poll_attempts,
         )
-        aggregate = aggregate_metrics(args.backend_url, batch_dir, sent_manifest)
+        send_wait_seconds = time.perf_counter() - send_start
+        aggregate_start = time.perf_counter()
+        aggregate = aggregate_metrics(
+            args.backend_url,
+            batch_dir,
+            sent_manifest,
+            args.timeout_seconds,
+            args.poll_seconds,
+            args.max_poll_attempts,
+        )
+        aggregate_seconds = time.perf_counter() - aggregate_start
         elapsed = time.perf_counter() - start
+        log(f"run measured section done batch_id={batch_id} elapsed_s={elapsed:.2f}")
 
     row = {
         "batch_id": batch_id,
@@ -625,9 +817,13 @@ def run_preset_config(args, configs: list[tuple[int, int]], run_number: int) -> 
         "backend": args.backend,
         "experiment": args.experiment,
         "run_number": run_number,
+        "generation_seconds": generation_seconds,
+        "send_wait_seconds": send_wait_seconds,
+        "aggregate_seconds": aggregate_seconds,
         "total_elapsed_seconds": elapsed,
         "batch_throughput_mb_s": total_input_mb / elapsed,
         "files_per_second": num_files / elapsed,
+        **upload_request_metrics(sent_manifest),
         **aggregate,
         **sampler.metrics(),
         "ray_workers": args.ray_workers,
@@ -635,6 +831,10 @@ def run_preset_config(args, configs: list[tuple[int, int]], run_number: int) -> 
         "concurrency": args.concurrency,
     }
     save_result(row)
+    log(
+        f"run done batch_id={batch_id} throughput_mb_s={row['batch_throughput_mb_s']:.2f} "
+        f"ok_fail={row['integrity_ok_count']}/{row['integrity_failed_count']}"
+    )
     return row
 
 
@@ -686,11 +886,18 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=int(os.getenv("BENCHMARK_SEED", "12345")))
     parser.add_argument("--timeout-seconds", type=int, default=3600)
     parser.add_argument("--poll-seconds", type=float, default=2.0)
+    parser.add_argument("--max-poll-attempts", type=int, default=int(os.getenv("BENCHMARK_MAX_POLL_ATTEMPTS", "0") or "0"))
     parser.add_argument("--ray-workers", type=int, default=int(os.getenv("RAY_WORKERS", "0") or "0"))
     parser.add_argument("--upload-workers", type=int, default=int(os.getenv("UPLOAD_WORKERS", "1") or "1"))
     args = parser.parse_args()
+    args.max_poll_attempts = args.max_poll_attempts or None
     experiment = args.experiment or args.csv_output.stem
     args.experiment = experiment
+    log(
+        f"benchmark start experiment={args.experiment} dataset={args.dataset} backend={args.backend} "
+        f"repetitions={args.repetitions} timeout_s={args.timeout_seconds} poll_s={args.poll_seconds} "
+        f"max_poll_attempts={args.max_poll_attempts}"
+    )
 
     if args.batch_preset:
         configs = parse_preset(args.batch_preset)
@@ -712,6 +919,7 @@ def main() -> None:
 
     write_csv(all_rows, args.csv_output)
     write_summary_csv(all_rows, args.csv_output)
+    log(f"benchmark done new_rows={len(rows)} csv={args.csv_output}")
     print_summary(rows)
 
 

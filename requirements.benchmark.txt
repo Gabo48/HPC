@@ -3,5 +3,6 @@ numpy==1.26.4
 ray[default]==2.10.0
 psycopg2-binary==2.9.9
 minio==7.2.7
+cryptography==42.0.8
 psutil==5.9.8
 requests==2.32.3

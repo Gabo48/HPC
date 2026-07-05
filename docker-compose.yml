@@ -14,7 +14,7 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
-      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit max_message_size 536870912
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit max_message_size 536870912 vm_memory_high_watermark 0.85
 
   postgres:
     image: postgres:16
@@ -57,7 +57,7 @@ services:
       context: .
       dockerfile: Dockerfile.processor
     command: ray start --head --port=6379 --ray-client-server-port=10001 --dashboard-host=0.0.0.0 --block
-    shm_size: '4gb'
+    shm_size: '6gb'
     ports:
       - "8265:8265"
     env_file: .env
@@ -74,6 +74,7 @@ services:
       context: .
       dockerfile: Dockerfile.processor
     command: ray start --address=ray-head:6379 --block
+    shm_size: '6gb'
     env_file: .env
     networks:
       - hpc-net
@@ -130,7 +131,7 @@ services:
       context: .
       dockerfile: Dockerfile.benchmark
     restart: "no"
-    shm_size: '4gb'
+    shm_size: '6gb'
     env_file: .env
     environment:
       HPC_BACKEND: ${HPC_BACKEND:-ray}

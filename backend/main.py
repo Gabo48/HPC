@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import base64
+import io
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 
 import pika
 import psycopg2
@@ -12,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from minio import Minio
 
+from dedup.deduplicator import ensure_bucket
 from dedup.reconstruct import reconstruct_file
 
 
@@ -42,6 +44,10 @@ def env(name: str) -> str:
     if not value:
         raise RuntimeError(f"Falta variable de entorno requerida: {name}")
     return value
+
+
+def log(message: str) -> None:
+    print(f"[{datetime.now(timezone.utc).isoformat()}] backend {message}", flush=True)
 
 
 def rabbitmq_connection() -> pika.BlockingConnection:
@@ -88,6 +94,10 @@ def minio_client() -> Minio:
     )
 
 
+def ensure_timing_column(cur) -> None:
+    cur.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS processing_timings JSONB")
+
+
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)) -> dict:
     """
@@ -99,12 +109,34 @@ async def upload(file: UploadFile = File(...)) -> dict:
     Returns:
     dict: Identificador, nombre y tamano del archivo recibido.
     """
-    data = await file.read()
     file_id = str(uuid.uuid4())
+    filename = os.path.basename(file.filename or "upload.bin")
+    data = await file.read()
+    bucket = env("MINIO_BUCKET")
+    staged_object_key = f"uploads/{file_id}/{filename}"
+    log(f"upload received file_id={file_id} filename={filename} size_mb={len(data) / (1024 * 1024):.2f}")
+
+    try:
+        client = minio_client()
+        ensure_bucket(client, bucket)
+        client.put_object(
+            bucket,
+            staged_object_key,
+            data=io.BytesIO(data),
+            length=len(data),
+            content_type="application/octet-stream",
+        )
+        log(f"upload staged file_id={file_id} object={staged_object_key}")
+    except Exception as exc:
+        log(f"upload staging failed file_id={file_id} error={exc}")
+        raise HTTPException(status_code=503, detail=f"MinIO no disponible: {exc}") from exc
+
     payload = {
         "file_id": file_id,
-        "filename": file.filename or "upload.bin",
-        "data_base64": base64.b64encode(data).decode("ascii"),
+        "filename": filename,
+        "bucket": bucket,
+        "staged_object_key": staged_object_key,
+        "size_bytes": len(data),
     }
 
     try:
@@ -118,7 +150,13 @@ async def upload(file: UploadFile = File(...)) -> dict:
             properties=pika.BasicProperties(content_type="application/json", delivery_mode=2),
         )
         connection.close()
+        log(f"upload queued file_id={file_id}")
     except Exception as exc:
+        try:
+            client.remove_object(bucket, staged_object_key)
+        except Exception:
+            pass
+        log(f"upload queue failed file_id={file_id} error={exc}")
         raise HTTPException(status_code=503, detail=f"RabbitMQ no disponible: {exc}") from exc
 
     return {"file_id": file_id, "filename": payload["filename"], "size_bytes": len(data)}
@@ -137,8 +175,13 @@ def get_file(file_id: str) -> dict:
     """
     with postgres_connection() as conn:
         with conn.cursor() as cur:
+            ensure_timing_column(cur)
             cur.execute(
-                "SELECT file_id, filename, total_size, chunk_count, uploaded_at FROM files WHERE file_id = %s",
+                """
+                SELECT file_id, filename, total_size, chunk_count, uploaded_at, processing_timings
+                FROM files
+                WHERE file_id = %s
+                """,
                 (file_id,),
             )
             file_row = cur.fetchone()
@@ -181,6 +224,7 @@ def get_file(file_id: str) -> dict:
         "total_size": file_row[2],
         "chunk_count": file_row[3],
         "uploaded_at": file_row[4].isoformat(),
+        "processing_timings": file_row[5] or {},
         "chunks": chunks,
     }
 

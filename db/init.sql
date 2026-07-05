@@ -3,8 +3,12 @@ CREATE TABLE IF NOT EXISTS files (
     filename      TEXT NOT NULL,
     total_size    BIGINT,
     chunk_count   INTEGER,
+    processing_timings JSONB DEFAULT '{}'::jsonb,
     uploaded_at   TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE files
+    ADD COLUMN IF NOT EXISTS processing_timings JSONB DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS unique_chunks (
     chunk_hash TEXT PRIMARY KEY,
@@ -75,9 +79,24 @@ CREATE TABLE IF NOT EXISTS batch_benchmark_results (
     chunk_size_kb           INTEGER NOT NULL,
     backend                 TEXT NOT NULL,
     run_number              INTEGER NOT NULL,
+    generation_seconds      FLOAT DEFAULT 0,
+    send_wait_seconds       FLOAT DEFAULT 0,
+    aggregate_seconds       FLOAT DEFAULT 0,
     total_elapsed_seconds   FLOAT NOT NULL,
     batch_throughput_mb_s   FLOAT NOT NULL,
     files_per_second        FLOAT NOT NULL,
+    upload_request_total_seconds FLOAT DEFAULT 0,
+    upload_request_avg_seconds   FLOAT DEFAULT 0,
+    integrity_download_total_seconds FLOAT DEFAULT 0,
+    integrity_download_avg_seconds   FLOAT DEFAULT 0,
+    payload_load_avg_seconds FLOAT DEFAULT 0,
+    chunk_split_avg_seconds FLOAT DEFAULT 0,
+    preprocess_avg_seconds  FLOAT DEFAULT 0,
+    dedup_store_avg_seconds FLOAT DEFAULT 0,
+    encryption_avg_seconds  FLOAT DEFAULT 0,
+    object_upload_avg_seconds FLOAT DEFAULT 0,
+    cleanup_avg_seconds     FLOAT DEFAULT 0,
+    worker_total_avg_seconds FLOAT DEFAULT 0,
     total_chunks            INTEGER NOT NULL,
     total_unique_chunks     INTEGER NOT NULL,
     total_duplicate_chunks  INTEGER NOT NULL,
@@ -97,6 +116,23 @@ CREATE TABLE IF NOT EXISTS batch_benchmark_results (
     concurrency             INTEGER NOT NULL,
     recorded_at             TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE batch_benchmark_results
+    ADD COLUMN IF NOT EXISTS generation_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS send_wait_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS aggregate_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS upload_request_total_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS upload_request_avg_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS integrity_download_total_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS integrity_download_avg_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS payload_load_avg_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS chunk_split_avg_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS preprocess_avg_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS dedup_store_avg_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS encryption_avg_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS object_upload_avg_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS cleanup_avg_seconds FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS worker_total_avg_seconds FLOAT DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_unique_chunks_ref_count
     ON unique_chunks(ref_count);

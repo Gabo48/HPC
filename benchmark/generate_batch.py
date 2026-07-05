@@ -22,6 +22,10 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def log(message: str) -> None:
+    print(f"[{utc_now()}] {message}", flush=True)
+
+
 def file_bytes(dataset: str, size_bytes: int, chunk_size_kb: int, index: int, seed: int) -> bytes:
     """
     Genera bytes reproducibles para un archivo sintetico de forma eficiente.
@@ -99,8 +103,10 @@ def generate_batch(
     for index in range(num_files):
         filename = f"file_{index:03d}.bin"
         path = output / filename
+        log(f"generate file start filename={filename} index={index + 1}/{num_files} size_mb={file_size_mb}")
         data = file_bytes(dataset, size_bytes, chunk_size_kb, index, seed)
         path.write_bytes(data)
+        log(f"generate file done filename={filename} index={index + 1}/{num_files}")
         files.append(
             {
                 "filename": filename,

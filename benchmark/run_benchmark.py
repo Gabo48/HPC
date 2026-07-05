@@ -447,6 +447,7 @@ def build_row(
     Returns:
     dict: Fila lista para persistencia y CSV.
     """
+    csv_dedup_metrics = {key: value for key, value in dedup_metrics.items() if key in CSV_COLUMNS}
     return {
         "benchmark_mode": benchmark_mode,
         "backend": backend,
@@ -457,7 +458,7 @@ def build_row(
         "elapsed_seconds": elapsed,
         "throughput_mb_s": file_size_mb / elapsed,
         "speedup_vs_sequential": speedup,
-        **dedup_metrics,
+        **csv_dedup_metrics,
         "integrity_ok": integrity_ok,
         **resource_metrics,
         "ray_workers": detect_ray_workers(backend),

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import io
+import json
+import time
 from dataclasses import dataclass
 
 import psycopg2
 from minio import Minio
 from minio.error import S3Error
+
+from dedup.crypto import encrypt_payload, encryption_enabled
 
 
 @dataclass(frozen=True)
@@ -15,6 +19,9 @@ class DedupStats:
     duplicate_chunks: int
     bytes_original: int
     bytes_stored: int
+    encryption_enabled: bool = False
+    encryption_seconds: float = 0.0
+    object_upload_seconds: float = 0.0
 
     @property
     def bytes_saved(self) -> int:
@@ -42,6 +49,9 @@ class DedupStats:
             "bytes_saved": self.bytes_saved,
             "storage_saving_pct": self.storage_saving_pct,
             "dedup_ratio": self.dedup_ratio,
+            "encryption_enabled": self.encryption_enabled,
+            "encryption_seconds": self.encryption_seconds,
+            "object_upload_seconds": self.object_upload_seconds,
         }
 
 
@@ -57,6 +67,16 @@ def object_key_for_hash(chunk_hash: str) -> str:
     return f"chunks/{chunk_hash}"
 
 
+def update_file_timings(*, postgres_dsn: str, file_id: str, processing_timings: dict) -> None:
+    with psycopg2.connect(postgres_dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS processing_timings JSONB")
+            cur.execute(
+                "UPDATE files SET processing_timings = %s WHERE file_id = %s",
+                (json.dumps(processing_timings), file_id),
+            )
+
+
 def store_file_chunks(
     *,
     postgres_dsn: str,
@@ -66,6 +86,7 @@ def store_file_chunks(
     filename: str,
     total_size: int,
     processed_chunks: list[dict],
+    processing_timings: dict | None = None,
 ) -> DedupStats:
     ensure_bucket(minio_client, bucket)
 
@@ -73,19 +94,24 @@ def store_file_chunks(
     duplicate_chunks = 0
     bytes_stored = 0
     seen_in_file: set[str] = set()
+    should_encrypt = encryption_enabled()
+    encryption_seconds = 0.0
+    object_upload_seconds = 0.0
 
     with psycopg2.connect(postgres_dsn) as conn:
         with conn.cursor() as cur:
+            cur.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS processing_timings JSONB")
             cur.execute(
                 """
-                INSERT INTO files (file_id, filename, total_size, chunk_count)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO files (file_id, filename, total_size, chunk_count, processing_timings)
+                VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT (file_id) DO UPDATE
                 SET filename = EXCLUDED.filename,
                     total_size = EXCLUDED.total_size,
-                    chunk_count = EXCLUDED.chunk_count
+                    chunk_count = EXCLUDED.chunk_count,
+                    processing_timings = EXCLUDED.processing_timings
                 """,
-                (file_id, filename, total_size, len(processed_chunks)),
+                (file_id, filename, total_size, len(processed_chunks), json.dumps(processing_timings or {})),
             )
 
             for chunk in processed_chunks:
@@ -97,7 +123,6 @@ def store_file_chunks(
                 else:
                     seen_in_file.add(chunk_hash)
                     unique_chunks += 1
-                    bytes_stored += chunk["size_bytes"]
 
                 cur.execute(
                     "SELECT object_key FROM unique_chunks WHERE chunk_hash = %s FOR UPDATE",
@@ -106,13 +131,21 @@ def store_file_chunks(
                 existing = cur.fetchone()
 
                 if existing is None:
+                    payload = chunk["data"]
+                    if should_encrypt:
+                        encrypt_start = time.perf_counter()
+                        payload = encrypt_payload(payload, aad=chunk_hash.encode("utf-8"))
+                        encryption_seconds += time.perf_counter() - encrypt_start
+                    bytes_stored += len(payload)
+                    upload_start = time.perf_counter()
                     minio_client.put_object(
                         bucket,
                         object_key,
-                        data=io.BytesIO(chunk["data"]),
-                        length=chunk["size_bytes"],
+                        data=io.BytesIO(payload),
+                        length=len(payload),
                         content_type="application/octet-stream",
                     )
+                    object_upload_seconds += time.perf_counter() - upload_start
                     cur.execute(
                         """
                         INSERT INTO unique_chunks
@@ -163,4 +196,7 @@ def store_file_chunks(
         duplicate_chunks=duplicate_chunks,
         bytes_original=total_size,
         bytes_stored=bytes_stored,
+        encryption_enabled=should_encrypt,
+        encryption_seconds=encryption_seconds,
+        object_upload_seconds=object_upload_seconds,
     )
