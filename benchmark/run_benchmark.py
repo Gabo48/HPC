@@ -311,7 +311,11 @@ def save_result(row: dict) -> None:
     Returns:
     None: Inserta la fila en benchmark_results.
     """
-    with psycopg2.connect(os.environ["POSTGRES_DSN"]) as conn:
+    postgres_dsn = os.getenv("POSTGRES_DSN")
+    if not postgres_dsn:
+        return
+
+    with psycopg2.connect(postgres_dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
