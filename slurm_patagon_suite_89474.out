@@ -1,0 +1,69 @@
+Job 89474
+PWD=/home/info335/gabriel/HPC
+Container=gabo48/hpc-benchmark:patagon
+SUITE_MODE=all
+Resultados=/home/info335/gabriel/HPC/results/patagon_suite_89474
+SLURM_CPUS_ON_NODE=16
+Preparando entorno Python...
+Requirement already satisfied: cython==3.0.10 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 1)) (3.0.10)
+Requirement already satisfied: numpy==1.26.4 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 2)) (1.26.4)
+Requirement already satisfied: ray==2.10.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.10.0)
+Requirement already satisfied: psycopg2-binary==2.9.9 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 4)) (2.9.9)
+Requirement already satisfied: minio==7.2.7 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 5)) (7.2.7)
+Requirement already satisfied: cryptography==42.0.8 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 6)) (42.0.8)
+Requirement already satisfied: psutil==5.9.8 in /home/ray/anaconda3/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 7)) (5.9.8)
+Requirement already satisfied: requests==2.32.3 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 8)) (2.32.3)
+Requirement already satisfied: click>=7.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (8.1.7)
+Requirement already satisfied: filelock in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.13.1)
+Requirement already satisfied: jsonschema in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (4.17.3)
+Requirement already satisfied: msgpack<2.0.0,>=1.0.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.0.7)
+Requirement already satisfied: packaging in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (21.3)
+Requirement already satisfied: protobuf!=3.19.5,>=3.15.3 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.19.6)
+Requirement already satisfied: pyyaml in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (6.0.1)
+Requirement already satisfied: aiosignal in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.3.1)
+Requirement already satisfied: frozenlist in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.4.0)
+Requirement already satisfied: certifi in /home/ray/anaconda3/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (2023.11.17)
+Requirement already satisfied: urllib3 in /home/ray/anaconda3/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (1.26.18)
+Requirement already satisfied: argon2-cffi in /home/info335/.local/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (25.1.0)
+Requirement already satisfied: pycryptodome in /home/info335/.local/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (3.23.0)
+Requirement already satisfied: typing-extensions in /home/ray/anaconda3/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (4.8.0)
+Requirement already satisfied: cffi>=1.12 in /home/ray/anaconda3/lib/python3.11/site-packages (from cryptography==42.0.8->-r requirements.benchmark.txt (line 6)) (1.15.1)
+Requirement already satisfied: charset-normalizer<4,>=2 in /home/ray/anaconda3/lib/python3.11/site-packages (from requests==2.32.3->-r requirements.benchmark.txt (line 8)) (3.3.2)
+Requirement already satisfied: idna<4,>=2.5 in /home/ray/anaconda3/lib/python3.11/site-packages (from requests==2.32.3->-r requirements.benchmark.txt (line 8)) (3.6)
+Requirement already satisfied: aiohttp>=3.7 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.8.6)
+Requirement already satisfied: aiohttp-cors in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.7.0)
+Requirement already satisfied: colorful in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.5.5)
+Requirement already satisfied: py-spy>=0.2.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.3.14)
+Requirement already satisfied: opencensus in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.11.3)
+Requirement already satisfied: pydantic!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.5.0)
+Requirement already satisfied: prometheus-client>=0.7.1 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.19.0)
+Requirement already satisfied: smart-open in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (6.2.0)
+Requirement already satisfied: virtualenv!=20.21.1,>=20.0.24 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (20.21.0)
+Requirement already satisfied: grpcio>=1.42.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.59.3)
+Requirement already satisfied: attrs>=17.3.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from aiohttp>=3.7->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (21.4.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in /home/ray/anaconda3/lib/python3.11/site-packages (from aiohttp>=3.7->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (6.0.4)
+Requirement already satisfied: async-timeout<5.0,>=4.0.0a3 in /home/ray/anaconda3/lib/python3.11/site-packages (from aiohttp>=3.7->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (4.0.3)
+Requirement already satisfied: yarl<2.0,>=1.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from aiohttp>=3.7->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.9.3)
+Requirement already satisfied: pycparser in /home/ray/anaconda3/lib/python3.11/site-packages (from cffi>=1.12->cryptography==42.0.8->-r requirements.benchmark.txt (line 6)) (2.21)
+Requirement already satisfied: annotated-types>=0.4.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from pydantic!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.6.0)
+Requirement already satisfied: pydantic-core==2.14.1 in /home/ray/anaconda3/lib/python3.11/site-packages (from pydantic!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.14.1)
+Requirement already satisfied: distlib<1,>=0.3.6 in /home/ray/anaconda3/lib/python3.11/site-packages (from virtualenv!=20.21.1,>=20.0.24->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.3.7)
+Requirement already satisfied: platformdirs<4,>=2.4 in /home/ray/anaconda3/lib/python3.11/site-packages (from virtualenv!=20.21.1,>=20.0.24->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.11.0)
+Requirement already satisfied: argon2-cffi-bindings in /home/info335/.local/lib/python3.11/site-packages (from argon2-cffi->minio==7.2.7->-r requirements.benchmark.txt (line 5)) (25.1.0)
+Requirement already satisfied: pyrsistent!=0.17.0,!=0.17.1,!=0.17.2,>=0.14.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from jsonschema->ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.20.0)
+Requirement already satisfied: opencensus-context>=0.1.3 in /home/ray/anaconda3/lib/python3.11/site-packages (from opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.1.3)
+Requirement already satisfied: google-api-core<3.0.0,>=1.0.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.14.0)
+Requirement already satisfied: pyparsing!=3.0.5,>=2.0.2 in /home/ray/anaconda3/lib/python3.11/site-packages (from packaging->ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.1.1)
+Requirement already satisfied: googleapis-common-protos<2.0.dev0,>=1.56.2 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.61.0)
+Requirement already satisfied: google-auth<3.0.dev0,>=2.14.1 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.23.4)
+Requirement already satisfied: cachetools<6.0,>=2.0.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-auth<3.0.dev0,>=2.14.1->google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (5.3.2)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-auth<3.0.dev0,>=2.14.1->google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.3.0)
+Requirement already satisfied: rsa<5,>=3.1.4 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-auth<3.0.dev0,>=2.14.1->google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (4.7.2)
+Requirement already satisfied: pyasn1<0.6.0,>=0.4.6 in /home/ray/anaconda3/lib/python3.11/site-packages (from pyasn1-modules>=0.2.1->google-auth<3.0.dev0,>=2.14.1->google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.5.1)
+running build_ext
+building 'processor' extension
+gcc -pthread -B /home/ray/anaconda3/compiler_compat -DNDEBUG -fwrapv -O2 -Wall -fPIC -O2 -isystem /home/ray/anaconda3/include -fPIC -O2 -isystem /home/ray/anaconda3/include -fPIC -I/home/ray/anaconda3/include/python3.11 -c processor.c -o build/temp.linux-x86_64-cpython-311/processor.o -O3 -fopenmp
+creating build/lib.linux-x86_64-cpython-311
+gcc -pthread -B /home/ray/anaconda3/compiler_compat -shared -Wl,-rpath,/home/ray/anaconda3/lib -Wl,-rpath-link,/home/ray/anaconda3/lib -L/home/ray/anaconda3/lib -Wl,-rpath,/home/ray/anaconda3/lib -Wl,-rpath-link,/home/ray/anaconda3/lib -L/home/ray/anaconda3/lib build/temp.linux-x86_64-cpython-311/processor.o -o build/lib.linux-x86_64-cpython-311/processor.cpython-311-x86_64-linux-gnu.so -fopenmp
+copying build/lib.linux-x86_64-cpython-311/processor.cpython-311-x86_64-linux-gnu.so -> 
+=== sequential_random_200mb_1024kb ===

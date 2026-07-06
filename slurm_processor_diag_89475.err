@@ -1,0 +1,14 @@
+pyxis: importing docker image: rayproject/ray:2.10.0-py311
+pyxis: imported docker image: rayproject/ray:2.10.0-py311
+/home/info335/.bash_profile: line 3: /opt/patagon/scripts/ssh-shared-keys.sh: No such file or directory
+/home/info335/.bash_profile: line 3: /opt/patagon/scripts/ssh-shared-keys.sh: No such file or directory
+/home/info335/.bash_profile: line 3: /opt/patagon/scripts/ssh-shared-keys.sh: No such file or directory
+/home/info335/.bash_profile: line 3: /opt/patagon/scripts/ssh-shared-keys.sh: No such file or directory
+2026-07-05 23:38:47,505	INFO worker.py:1432 -- Using address local set in the environment variable RAY_ADDRESS
+2026-07-05 23:38:51,261	INFO worker.py:1743 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+/home/info335/.bash_profile: line 3: /opt/patagon/scripts/ssh-shared-keys.sh: No such file or directory
+2026-07-05 23:38:58,070	INFO worker.py:1432 -- Using address local set in the environment variable RAY_ADDRESS
+2026-07-05 23:39:00,127	INFO worker.py:1743 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m
+/home/info335/.bash_profile: line 3: /opt/patagon/scripts/ssh-shared-keys.sh: No such file or directory
+2026-07-05 23:39:06,601	INFO worker.py:1432 -- Using address local set in the environment variable RAY_ADDRESS
+2026-07-05 23:39:08,639	INFO worker.py:1743 -- Started a local Ray instance. View the dashboard at [1m[32mhttp://127.0.0.1:8265 [39m[22m

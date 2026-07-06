@@ -1,0 +1,9 @@
+pyxis: importing docker image: rayproject/ray:2.10.0-py311
+pyxis: imported docker image: rayproject/ray:2.10.0-py311
+/home/info335/.bash_profile: line 3: /opt/patagon/scripts/ssh-shared-keys.sh: No such file or directory
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+conda 24.1.2 requires packaging>=23.0, but you have packaging 21.3 which is incompatible.
+msal 1.18.0b1 requires cryptography<40,>=0.6, but you have cryptography 42.0.8 which is incompatible.
+pyopenssl 22.1.0 requires cryptography<39,>=38.0.0, but you have cryptography 42.0.8 which is incompatible.
+error: command 'gcc' failed: No such file or directory
+srun: error: nodeGPU02: task 0: Exited with exit code 1

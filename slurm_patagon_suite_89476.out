@@ -1,0 +1,652 @@
+Job 89476
+PWD=/home/info335/gabriel/HPC
+Container=rayproject/ray:2.10.0-py311
+SUITE_MODE=all
+Resultados=/home/info335/gabriel/HPC/results/patagon_suite_89476
+SLURM_CPUS_ON_NODE=16
+Preparando entorno Python...
+Requirement already satisfied: cython==3.0.10 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 1)) (3.0.10)
+Requirement already satisfied: numpy==1.26.4 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 2)) (1.26.4)
+Requirement already satisfied: ray==2.10.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.10.0)
+Requirement already satisfied: psycopg2-binary==2.9.9 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 4)) (2.9.9)
+Requirement already satisfied: minio==7.2.7 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 5)) (7.2.7)
+Requirement already satisfied: cryptography==42.0.8 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 6)) (42.0.8)
+Requirement already satisfied: psutil==5.9.8 in /home/ray/anaconda3/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 7)) (5.9.8)
+Requirement already satisfied: requests==2.32.3 in /home/info335/.local/lib/python3.11/site-packages (from -r requirements.benchmark.txt (line 8)) (2.32.3)
+Requirement already satisfied: click>=7.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (8.1.7)
+Requirement already satisfied: filelock in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.13.1)
+Requirement already satisfied: jsonschema in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (4.17.3)
+Requirement already satisfied: msgpack<2.0.0,>=1.0.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.0.7)
+Requirement already satisfied: packaging in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (21.3)
+Requirement already satisfied: protobuf!=3.19.5,>=3.15.3 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.19.6)
+Requirement already satisfied: pyyaml in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (6.0.1)
+Requirement already satisfied: aiosignal in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.3.1)
+Requirement already satisfied: frozenlist in /home/ray/anaconda3/lib/python3.11/site-packages (from ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.4.0)
+Requirement already satisfied: certifi in /home/ray/anaconda3/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (2023.11.17)
+Requirement already satisfied: urllib3 in /home/ray/anaconda3/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (1.26.18)
+Requirement already satisfied: argon2-cffi in /home/info335/.local/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (25.1.0)
+Requirement already satisfied: pycryptodome in /home/info335/.local/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (3.23.0)
+Requirement already satisfied: typing-extensions in /home/ray/anaconda3/lib/python3.11/site-packages (from minio==7.2.7->-r requirements.benchmark.txt (line 5)) (4.8.0)
+Requirement already satisfied: cffi>=1.12 in /home/ray/anaconda3/lib/python3.11/site-packages (from cryptography==42.0.8->-r requirements.benchmark.txt (line 6)) (1.15.1)
+Requirement already satisfied: charset-normalizer<4,>=2 in /home/ray/anaconda3/lib/python3.11/site-packages (from requests==2.32.3->-r requirements.benchmark.txt (line 8)) (3.3.2)
+Requirement already satisfied: idna<4,>=2.5 in /home/ray/anaconda3/lib/python3.11/site-packages (from requests==2.32.3->-r requirements.benchmark.txt (line 8)) (3.6)
+Requirement already satisfied: aiohttp>=3.7 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.8.6)
+Requirement already satisfied: aiohttp-cors in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.7.0)
+Requirement already satisfied: colorful in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.5.5)
+Requirement already satisfied: py-spy>=0.2.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.3.14)
+Requirement already satisfied: opencensus in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.11.3)
+Requirement already satisfied: pydantic!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.5.0)
+Requirement already satisfied: prometheus-client>=0.7.1 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.19.0)
+Requirement already satisfied: smart-open in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (6.2.0)
+Requirement already satisfied: virtualenv!=20.21.1,>=20.0.24 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (20.21.0)
+Requirement already satisfied: grpcio>=1.42.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.59.3)
+Requirement already satisfied: attrs>=17.3.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from aiohttp>=3.7->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (21.4.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in /home/ray/anaconda3/lib/python3.11/site-packages (from aiohttp>=3.7->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (6.0.4)
+Requirement already satisfied: async-timeout<5.0,>=4.0.0a3 in /home/ray/anaconda3/lib/python3.11/site-packages (from aiohttp>=3.7->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (4.0.3)
+Requirement already satisfied: yarl<2.0,>=1.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from aiohttp>=3.7->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.9.3)
+Requirement already satisfied: pycparser in /home/ray/anaconda3/lib/python3.11/site-packages (from cffi>=1.12->cryptography==42.0.8->-r requirements.benchmark.txt (line 6)) (2.21)
+Requirement already satisfied: annotated-types>=0.4.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from pydantic!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.6.0)
+Requirement already satisfied: pydantic-core==2.14.1 in /home/ray/anaconda3/lib/python3.11/site-packages (from pydantic!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.14.1)
+Requirement already satisfied: distlib<1,>=0.3.6 in /home/ray/anaconda3/lib/python3.11/site-packages (from virtualenv!=20.21.1,>=20.0.24->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.3.7)
+Requirement already satisfied: platformdirs<4,>=2.4 in /home/ray/anaconda3/lib/python3.11/site-packages (from virtualenv!=20.21.1,>=20.0.24->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.11.0)
+Requirement already satisfied: argon2-cffi-bindings in /home/info335/.local/lib/python3.11/site-packages (from argon2-cffi->minio==7.2.7->-r requirements.benchmark.txt (line 5)) (25.1.0)
+Requirement already satisfied: pyrsistent!=0.17.0,!=0.17.1,!=0.17.2,>=0.14.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from jsonschema->ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.20.0)
+Requirement already satisfied: opencensus-context>=0.1.3 in /home/ray/anaconda3/lib/python3.11/site-packages (from opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.1.3)
+Requirement already satisfied: google-api-core<3.0.0,>=1.0.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.14.0)
+Requirement already satisfied: pyparsing!=3.0.5,>=2.0.2 in /home/ray/anaconda3/lib/python3.11/site-packages (from packaging->ray==2.10.0->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (3.1.1)
+Requirement already satisfied: googleapis-common-protos<2.0.dev0,>=1.56.2 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (1.61.0)
+Requirement already satisfied: google-auth<3.0.dev0,>=2.14.1 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (2.23.4)
+Requirement already satisfied: cachetools<6.0,>=2.0.0 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-auth<3.0.dev0,>=2.14.1->google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (5.3.2)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-auth<3.0.dev0,>=2.14.1->google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.3.0)
+Requirement already satisfied: rsa<5,>=3.1.4 in /home/ray/anaconda3/lib/python3.11/site-packages (from google-auth<3.0.dev0,>=2.14.1->google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (4.7.2)
+Requirement already satisfied: pyasn1<0.6.0,>=0.4.6 in /home/ray/anaconda3/lib/python3.11/site-packages (from pyasn1-modules>=0.2.1->google-auth<3.0.dev0,>=2.14.1->google-api-core<3.0.0,>=1.0.0->opencensus->ray[default]==2.10.0->-r requirements.benchmark.txt (line 3)) (0.5.1)
+running build_ext
+=== sequential_random_200mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 sequential     0.166 1206.41    0.0 True
+=== numpy_random_200mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 numpy          0.208 1011.45    0.0 True
+=== cython_random_200mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 cython         1.596  125.33    0.0 True
+=== ray_random_200mb_1024kb_rw2_batch1 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 ray            2.027  597.17    0.0 True
+=== ray_random_200mb_1024kb_rw2_batch8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 ray            1.080  842.85    0.0 True
+=== ray_random_200mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 ray            1.133 1015.63    0.0 True
+=== ray_random_200mb_1024kb_rw2_batch32 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 ray            1.155  670.08    0.0 True
+=== ray_random_200mb_1024kb_rw3_batch1 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 ray            1.089  750.71    0.0 True
+=== ray_random_200mb_1024kb_rw3_batch8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 ray            1.054 1014.37    0.0 True
+=== ray_random_200mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 ray            1.060 1262.41    0.0 True
+=== ray_random_200mb_1024kb_rw3_batch32 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  1024 ray            1.119  668.82    0.0 True
+=== sequential_random_200mb_4096kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 sequential     0.165 1211.31    0.0 True
+=== numpy_random_200mb_4096kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 numpy          0.191 1064.66    0.0 True
+=== cython_random_200mb_4096kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 cython         1.590  125.80    0.0 True
+=== ray_random_200mb_4096kb_rw2_batch1 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 ray            1.115  721.74    0.0 True
+=== ray_random_200mb_4096kb_rw2_batch8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 ray            1.147  608.90    0.0 True
+=== ray_random_200mb_4096kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 ray            1.171  593.55    0.0 True
+=== ray_random_200mb_4096kb_rw2_batch32 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 ray            1.207  496.99    0.0 True
+=== ray_random_200mb_4096kb_rw3_batch1 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 ray            1.127  723.30    0.0 True
+=== ray_random_200mb_4096kb_rw3_batch8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 ray            1.140  628.71    0.0 True
+=== ray_random_200mb_4096kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 ray            1.173  627.42    0.0 True
+=== ray_random_200mb_4096kb_rw3_batch32 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  4096 ray            1.221  497.14    0.0 True
+=== sequential_random_200mb_8192kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 sequential     0.165 1214.00    0.0 True
+=== numpy_random_200mb_8192kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 numpy          0.192 1064.31    0.0 True
+=== cython_random_200mb_8192kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 cython         1.589  125.88    0.0 True
+=== ray_random_200mb_8192kb_rw2_batch1 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 ray            1.103  714.95    0.0 True
+=== ray_random_200mb_8192kb_rw2_batch8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 ray            1.195  507.60    0.0 True
+=== ray_random_200mb_8192kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 ray            1.232  498.55    0.0 True
+=== ray_random_200mb_8192kb_rw2_batch32 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 ray            1.446  289.14    0.0 True
+=== ray_random_200mb_8192kb_rw3_batch1 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 ray            1.100  744.90    0.0 True
+=== ray_random_200mb_8192kb_rw3_batch8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 ray            1.179  558.02    0.0 True
+=== ray_random_200mb_8192kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 ray            1.211  485.94    0.0 True
+=== ray_random_200mb_8192kb_rw3_batch32 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     200  8192 ray            1.395  333.52    0.0 True
+=== sequential_random_500mb_1file_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     500  1024 sequential     0.414 1208.62    0.0 True
+=== numpy_random_500mb_1file_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     500  1024 numpy          0.449 1117.34    0.0 True
+=== cython_random_500mb_1file_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     500  1024 cython         3.988  125.39    0.0 True
+=== ray_random_500mb_1file_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     500  1024 ray            1.278 1145.82    0.0 True
+=== ray_random_500mb_1file_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     500  1024 ray            1.172 1702.98    0.0 True
+=== sequential_random_10mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      10  1024 sequential     0.008 1184.01    0.0 True
+=== numpy_random_10mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      10  1024 numpy          0.019  955.80    0.0 True
+=== cython_random_10mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      10  1024 cython         0.078  128.31    0.0 True
+=== ray_random_10mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      10  1024 ray            0.564  373.30    0.0 True
+=== ray_random_10mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      10  1024 ray            0.575  361.20    0.0 True
+=== sequential_random_50mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      50  1024 sequential     0.042 1202.69    0.0 True
+=== numpy_random_50mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      50  1024 numpy          0.054 1032.39    0.0 True
+=== cython_random_50mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      50  1024 cython         0.389  128.57    0.0 True
+=== ray_random_50mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      50  1024 ray            0.604  903.44    0.0 True
+=== ray_random_50mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random      50  1024 ray            0.591 1247.22    0.0 True
+=== sequential_random_100mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     100  1024 sequential     0.083 1205.60    0.0 True
+=== numpy_random_100mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     100  1024 numpy          0.104 1014.09    0.0 True
+=== cython_random_100mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     100  1024 cython         0.780  128.24    0.0 True
+=== ray_random_100mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     100  1024 ray            0.992 1024.33    0.0 True
+=== ray_random_100mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   random     100  1024 ray            1.036 1212.07    0.0 True
+=== sequential_repeated_10mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    10  1024 sequential     0.008 1186.22   90.0 True
+=== numpy_repeated_10mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    10  1024 numpy          0.019  957.79   90.0 True
+=== cython_repeated_10mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    10  1024 cython         0.078  128.32   90.0 True
+=== ray_repeated_10mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    10  1024 ray            0.564  368.04   90.0 True
+=== ray_repeated_10mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    10  1024 ray            0.583  407.50   90.0 True
+=== sequential_repeated_50mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    50  1024 sequential     0.042 1204.40   98.0 True
+=== numpy_repeated_50mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    50  1024 numpy          0.054 1034.08   98.0 True
+=== cython_repeated_50mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    50  1024 cython         0.389  128.51   98.0 True
+=== ray_repeated_50mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    50  1024 ray            0.595  880.71   98.0 True
+=== ray_repeated_50mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated    50  1024 ray            0.605 1046.37   98.0 True
+=== sequential_repeated_100mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated   100  1024 sequential     0.083 1204.25   99.0 True
+=== numpy_repeated_100mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated   100  1024 numpy          0.105 1007.63   99.0 True
+=== cython_repeated_100mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated   100  1024 cython         0.777  128.63   99.0 True
+=== ray_repeated_100mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated   100  1024 ray            1.000  842.52   99.0 True
+=== ray_repeated_100mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   repeated   100  1024 ray            1.009 1127.41   99.0 True
+=== sequential_modified_10mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    10  1024 sequential     0.008 1183.29   70.0 True
+=== numpy_modified_10mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    10  1024 numpy          0.019  958.44   70.0 True
+=== cython_modified_10mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    10  1024 cython         0.078  128.09   70.0 True
+=== ray_modified_10mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    10  1024 ray            0.568  294.06   70.0 True
+=== ray_modified_10mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    10  1024 ray            0.599  370.90   70.0 True
+=== sequential_modified_50mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    50  1024 sequential     0.042 1203.75   84.0 True
+=== numpy_modified_50mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    50  1024 numpy          0.054 1032.37   84.0 True
+=== cython_modified_50mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    50  1024 cython         0.389  128.55   84.0 True
+=== ray_modified_50mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    50  1024 ray            0.606  858.72   84.0 True
+=== ray_modified_50mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified    50  1024 ray            0.604 1026.41   84.0 True
+=== sequential_modified_100mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified   100  1024 sequential     0.083 1205.57   86.0 True
+=== numpy_modified_100mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified   100  1024 numpy          0.103 1015.86   86.0 True
+=== cython_modified_100mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified   100  1024 cython         0.778  128.58   86.0 True
+=== ray_modified_100mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified   100  1024 ray            1.010  722.18   86.0 True
+=== ray_modified_100mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   modified   100  1024 ray            0.997 1083.27   86.0 True
+=== sequential_mixed_10mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       10  1024 sequential     0.009 1175.76   40.0 True
+=== numpy_mixed_10mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       10  1024 numpy          0.019  958.23   40.0 True
+=== cython_mixed_10mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       10  1024 cython         0.078  128.30   40.0 True
+=== ray_mixed_10mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       10  1024 ray            0.563  372.86   40.0 True
+=== ray_mixed_10mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       10  1024 ray            0.574  360.85   40.0 True
+=== sequential_mixed_50mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       50  1024 sequential     0.042 1204.30   48.0 True
+=== numpy_mixed_50mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       50  1024 numpy          0.054 1032.83   48.0 True
+=== cython_mixed_50mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       50  1024 cython         0.389  128.50   48.0 True
+=== ray_mixed_50mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       50  1024 ray            0.607  868.39   48.0 True
+=== ray_mixed_50mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed       50  1024 ray            0.615 1049.72   48.0 True
+=== sequential_mixed_100mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed      100  1024 sequential     0.083 1205.94   49.0 True
+=== numpy_mixed_100mb_1024kb ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed      100  1024 numpy          0.104 1014.32   49.0 True
+=== cython_mixed_100mb_1024kb_omp8 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed      100  1024 cython         0.778  128.59   49.0 True
+=== ray_mixed_100mb_1024kb_rw2_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed      100  1024 ray            1.009  784.79   49.0 True
+=== ray_mixed_100mb_1024kb_rw3_batch16 ===
+
+Resumen benchmark
+mode        dataset   file chunk backend      avg_s     MB/s  save%  ok
+----------- -------- ----- ----- ------------ ------- ------- ------ ---
+processor   mixed      100  1024 ray            1.009 1024.50   49.0 True
+Listo. Resultados en /home/info335/gabriel/HPC/results/patagon_suite_89476

@@ -1,0 +1,14 @@
+pyxis: importing docker image: gabo48/hpc-benchmark:patagon
+pyxis: imported docker image: gabo48/hpc-benchmark:patagon
+/home/info335/.bash_profile: line 3: /opt/patagon/scripts/ssh-shared-keys.sh: No such file or directory
+Traceback (most recent call last):
+  File "/home/info335/gabriel/HPC/benchmark/run_benchmark.py", line 578, in <module>
+    main()
+  File "/home/info335/gabriel/HPC/benchmark/run_benchmark.py", line 563, in main
+    save_result(row)
+  File "/home/info335/gabriel/HPC/benchmark/run_benchmark.py", line 314, in save_result
+    with psycopg2.connect(os.environ["POSTGRES_DSN"]) as conn:
+                          ~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "<frozen os>", line 679, in __getitem__
+KeyError: 'POSTGRES_DSN'
+srun: error: nodeGPU02: task 0: Exited with exit code 1
