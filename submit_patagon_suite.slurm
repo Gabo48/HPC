@@ -31,7 +31,7 @@ set -euo pipefail
 SUITE_MODE="${SUITE_MODE:-all}" # all | diagnostics | probe | matrix
 
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-rayproject/ray:2.10.0-py311}"
-CONTAINER_NAME="${CONTAINER_NAME:-hpc-ray-suite}"
+CONTAINER_NAME="${CONTAINER_NAME:-hpc-suite-${SLURM_JOB_ID}}"
 
 DIAG_DATASET="${DIAG_DATASET:-random}"
 DIAG_FILE_SIZE_MB="${DIAG_FILE_SIZE_MB:-200}"
