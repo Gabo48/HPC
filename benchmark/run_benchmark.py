@@ -564,7 +564,7 @@ def main() -> None:
                     if backend == "sequential" and not sequential_times:
                         sequential_times = [row["elapsed_seconds"] for row in backend_rows]
 
-    output_path = Path("/results/benchmark.csv")
+    output_path = Path(os.getenv("BENCHMARK_CSV_OUTPUT", "/results/benchmark.csv"))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=CSV_COLUMNS)

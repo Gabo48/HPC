@@ -1,0 +1,2 @@
+dataset_type,num_files,file_size_mb,total_input_mb,chunk_size_kb,backend,concurrency,repetitions,elapsed_avg_seconds,elapsed_std_seconds,elapsed_min_seconds,elapsed_max_seconds,throughput_avg_mb_s,throughput_std_mb_s,throughput_min_mb_s,throughput_max_mb_s
+random,20,50,1000,1024,sequential,2,5,22.81934074199994,2.457137731850234,19.466954385000008,25.654752737999843,44.24384347210784,4.908636346573521,38.979132257189875,51.36910377570598

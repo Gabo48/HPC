@@ -1,0 +1,2 @@
+dataset_type,num_files,file_size_mb,total_input_mb,chunk_size_kb,backend,concurrency,repetitions,elapsed_avg_seconds,elapsed_std_seconds,elapsed_min_seconds,elapsed_max_seconds,throughput_avg_mb_s,throughput_std_mb_s,throughput_min_mb_s,throughput_max_mb_s
+modified,20,10,200,1024,cython,2,5,7.2250207716002475,2.1287135753275326,5.159991530999832,10.17066726899975,29.630291161995945,8.400124181384383,19.664393172078405,38.75975353805411

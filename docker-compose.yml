@@ -56,7 +56,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.processor
-    command: ray start --head --port=6379 --ray-client-server-port=10001 --dashboard-host=0.0.0.0 --block
+    command: ray start --head --port=6379 --ray-client-server-port=10001 --dashboard-host=0.0.0.0 --num-cpus=0 --block
     shm_size: '6gb'
     ports:
       - "8265:8265"
@@ -73,7 +73,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.processor
-    command: ray start --address=ray-head:6379 --block
+    command: ray start --address=ray-head:6379 --num-cpus=${RAY_WORKER_CPUS:-1} --block
     shm_size: '6gb'
     env_file: .env
     networks:
@@ -112,6 +112,11 @@ services:
       HPC_BACKEND: ${HPC_BACKEND:-ray}
       CHUNK_SIZE_KB: ${CHUNK_SIZE_KB:-1024}
       RAY_WORKERS: ${RAY_WORKERS:-}
+      RAY_CHUNK_BATCH_SIZE: ${RAY_CHUNK_BATCH_SIZE:-16}
+      OMP_NUM_THREADS: ${OMP_NUM_THREADS:-1}
+      OPENBLAS_NUM_THREADS: ${OPENBLAS_NUM_THREADS:-1}
+      MKL_NUM_THREADS: ${MKL_NUM_THREADS:-1}
+      NUMEXPR_NUM_THREADS: ${NUMEXPR_NUM_THREADS:-1}
     networks:
       - hpc-net
     depends_on:
@@ -121,8 +126,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      ray-head:
-        condition: service_started
     deploy:
       replicas: 1
 
@@ -144,6 +147,11 @@ services:
       BENCHMARK_INCLUDE_1GB: ${BENCHMARK_INCLUDE_1GB:-false}
       RAY_WORKERS: ${RAY_WORKERS:-}
       UPLOAD_WORKERS: ${UPLOAD_WORKERS:-1}
+      RAY_CHUNK_BATCH_SIZE: ${RAY_CHUNK_BATCH_SIZE:-16}
+      OMP_NUM_THREADS: ${OMP_NUM_THREADS:-1}
+      OPENBLAS_NUM_THREADS: ${OPENBLAS_NUM_THREADS:-1}
+      MKL_NUM_THREADS: ${MKL_NUM_THREADS:-1}
+      NUMEXPR_NUM_THREADS: ${NUMEXPR_NUM_THREADS:-1}
     profiles: ["benchmark"]
     volumes:
       - ./results:/results
@@ -154,8 +162,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      ray-head:
-        condition: service_started
 
 networks:
   hpc-net:

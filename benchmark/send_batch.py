@@ -89,6 +89,16 @@ def wait_for_file(
     Returns:
     dict: Metadata del archivo procesado.
     """
+    def ready(metadata: dict) -> tuple[bool, str]:
+        chunks = metadata.get("chunks") or []
+        expected_chunks = int(metadata.get("chunk_count") or 0)
+        timings = metadata.get("processing_timings") or {}
+        if expected_chunks and len(chunks) < expected_chunks:
+            return False, f"chunks {len(chunks)}/{expected_chunks}"
+        if "worker_total_seconds" not in timings:
+            return False, "processing_timings incompleto"
+        return True, "ready"
+
     deadline = time.monotonic() + timeout_seconds
     last_error = None
     attempts = 0
@@ -102,10 +112,15 @@ def wait_for_file(
         try:
             response = requests.get(f"{backend_url.rstrip('/')}/file/{file_id}", timeout=30)
             if response.status_code == 200:
-                elapsed = time.monotonic() - started_at
-                log(f"poll done file_id={file_id} attempts={attempts} elapsed_s={elapsed:.2f}")
-                return response.json()
-            last_error = f"HTTP {response.status_code}: {response.text}"
+                metadata = response.json()
+                is_ready, reason = ready(metadata)
+                if is_ready:
+                    elapsed = time.monotonic() - started_at
+                    log(f"poll done file_id={file_id} attempts={attempts} elapsed_s={elapsed:.2f}")
+                    return metadata
+                last_error = reason
+            else:
+                last_error = f"HTTP {response.status_code}: {response.text}"
         except requests.RequestException as exc:
             last_error = str(exc)
         if attempts == 1 or attempts % 5 == 0:

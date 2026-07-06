@@ -12,8 +12,22 @@ FILE_SIZES=(10 50 100)
 # El efecto de num_files se explora aparte, en un experimento reducido (ver EXTRA abajo).
 NUM_FILES_MAIN=20
 
+# Dos modos comparables:
+# - uw1: comparación limpia del método de procesamiento dentro de un archivo.
+# - uw2: throughput del sistema con dos archivos en paralelo.
 UPLOAD_WORKERS=(1 2)
-RAY_WORKERS=(2 4)
+
+# En un i5-12450H, cada ray-worker se limita a 1 CPU. Usamos rw3 solo en uw1
+# para medir escalamiento sin mezclarlo con dos upload-workers.
+RAY_WORKERS_UW1=(2 3)
+RAY_WORKERS_UW2=(2)
+
+# OpenMP/Cython: mantener upload_workers * OMP_NUM_THREADS <= 6 aprox.
+CYTHON_OMP_UW1=4
+CYTHON_OMP_UW2=3
+
+RAY_WORKER_CPUS=1
+RAY_CHUNK_BATCH_SIZE=16
 
 CHUNK_SIZE_KB=1024
 RESULTS_DIR="results"
@@ -28,6 +42,29 @@ reps_for_size() {
         echo 3
     else
         echo 5
+    fi
+}
+
+omp_threads_for() {
+    local backend="$1"
+    local upload_workers="$2"
+
+    if [ "$backend" != "cython" ]; then
+        echo 1
+    elif [ "$upload_workers" -eq 1 ]; then
+        echo "$CYTHON_OMP_UW1"
+    else
+        echo "$CYTHON_OMP_UW2"
+    fi
+}
+
+ray_workers_for_upload_workers() {
+    local upload_workers="$1"
+
+    if [ "$upload_workers" -eq 1 ]; then
+        printf "%s\n" "${RAY_WORKERS_UW1[@]}"
+    else
+        printf "%s\n" "${RAY_WORKERS_UW2[@]}"
     fi
 }
 
@@ -81,6 +118,7 @@ run_experiment() {
     local ray_workers="$6"
     local experiment="$7"
     local repetitions="$8"
+    local omp_threads="$9"
 
     local csv_output="/results/${experiment}.csv"
     echo "=== Iniciando experimento: ${experiment} (reps=${repetitions}) ==="
@@ -89,15 +127,19 @@ run_experiment() {
 
     if [ "$backend" = "ray" ]; then
         HPC_BACKEND="$backend" CHUNK_SIZE_KB="$CHUNK_SIZE_KB" RAY_WORKERS="$ray_workers" \
+            RAY_WORKER_CPUS="$RAY_WORKER_CPUS" RAY_CHUNK_BATCH_SIZE="$RAY_CHUNK_BATCH_SIZE" \
+            OMP_NUM_THREADS="$omp_threads" OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
             docker compose up -d \
                 --scale upload-worker="$upload_workers" \
                 --scale ray-worker="$ray_workers" \
                 backend upload-worker ray-head ray-worker rabbitmq postgres minio
     else
         HPC_BACKEND="$backend" CHUNK_SIZE_KB="$CHUNK_SIZE_KB" RAY_WORKERS=0 \
+            RAY_WORKER_CPUS="$RAY_WORKER_CPUS" RAY_CHUNK_BATCH_SIZE="$RAY_CHUNK_BATCH_SIZE" \
+            OMP_NUM_THREADS="$omp_threads" OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
             docker compose up -d \
                 --scale upload-worker="$upload_workers" \
-                backend upload-worker ray-head rabbitmq postgres minio
+                backend upload-worker rabbitmq postgres minio
     fi
 
     if ! wait_for_backend; then
@@ -109,7 +151,10 @@ run_experiment() {
     energy_before=$(read_rapl_uj)
     wall_start=$(date +%s.%N)
 
-    if ! docker compose --profile benchmark run --rm benchmark \
+    if ! HPC_BACKEND="$backend" CHUNK_SIZE_KB="$CHUNK_SIZE_KB" RAY_WORKERS="$ray_workers" \
+        RAY_WORKER_CPUS="$RAY_WORKER_CPUS" RAY_CHUNK_BATCH_SIZE="$RAY_CHUNK_BATCH_SIZE" \
+        OMP_NUM_THREADS="$omp_threads" OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
+        docker compose --profile benchmark run --rm benchmark \
         python benchmark/run_batch_benchmark.py \
             --dataset "$dataset" \
             --num-files "$num_files" \
@@ -161,17 +206,24 @@ main_matrix() {
                 local repetitions
                 repetitions=$(reps_for_size "$file_size_mb")
                 for upload_workers in "${UPLOAD_WORKERS[@]}"; do
+                    local omp_threads
+                    omp_threads=$(omp_threads_for "$backend" "$upload_workers")
                     if [ "$backend" = "ray" ]; then
-                        for ray_workers in "${RAY_WORKERS[@]}"; do
+                        while IFS= read -r ray_workers; do
                             local experiment="ray_${dataset}_${file_size_mb}mb_uw${upload_workers}_rw${ray_workers}"
                             run_experiment "$backend" "$dataset" "$file_size_mb" "$NUM_FILES_MAIN" \
-                                "$upload_workers" "$ray_workers" "$experiment" "$repetitions" \
+                                "$upload_workers" "$ray_workers" "$experiment" "$repetitions" "$omp_threads" \
                                 || echo "Continuando pese al fallo en ${experiment}"
-                        done
+                        done < <(ray_workers_for_upload_workers "$upload_workers")
+                    elif [ "$backend" = "cython" ]; then
+                        local experiment="cython_${dataset}_${file_size_mb}mb_uw${upload_workers}_omp${omp_threads}"
+                        run_experiment "$backend" "$dataset" "$file_size_mb" "$NUM_FILES_MAIN" \
+                            "$upload_workers" 0 "$experiment" "$repetitions" "$omp_threads" \
+                            || echo "Continuando pese al fallo en ${experiment}"
                     else
                         local experiment="${backend}_${dataset}_${file_size_mb}mb_uw${upload_workers}"
                         run_experiment "$backend" "$dataset" "$file_size_mb" "$NUM_FILES_MAIN" \
-                            "$upload_workers" 0 "$experiment" "$repetitions" \
+                            "$upload_workers" 0 "$experiment" "$repetitions" "$omp_threads" \
                             || echo "Continuando pese al fallo en ${experiment}"
                     fi
                 done
@@ -196,12 +248,12 @@ extra_num_files_experiment() {
             if [ "$backend" = "ray" ]; then
                 local experiment="extra_nf_ray_${num_files}files_rw2"
                 run_experiment "$backend" "$dataset" "$file_size_mb" "$num_files" \
-                    2 2 "$experiment" "$repetitions" \
+                    2 2 "$experiment" "$repetitions" 1 \
                     || echo "Continuando pese al fallo en ${experiment}"
             else
                 local experiment="extra_nf_sequential_${num_files}files"
                 run_experiment "$backend" "$dataset" "$file_size_mb" "$num_files" \
-                    2 0 "$experiment" "$repetitions" \
+                    2 0 "$experiment" "$repetitions" 1 \
                     || echo "Continuando pese al fallo en ${experiment}"
             fi
         done

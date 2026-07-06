@@ -5,3 +5,4 @@ results/
 postgres-data/
 minio-data/
 rabbitmq-data/
+.csv
